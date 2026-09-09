@@ -36,15 +36,13 @@
                         <label>Telegram Nickname</label>
                         <input type="text" id="regNickname" class="form-input" placeholder="@username">
                     </div>
-                    <button class="btn btn-primary btn-large" onclick="window.registerUser()">
+                    <button class="btn btn-primary btn-large" onclick="registerUser()">
                         Продолжить →
                     </button>
                 </div>
 
                 <div class="register-footer">
-                    <button class="theme-toggle-small" onclick="window.toggleTheme()" id="themeToggleReg">
-                        🌙
-                    </button>
+                    <button class="theme-toggle-small" onclick="toggleTheme()" id="themeToggleReg">🌙</button>
                     <span style="color: var(--text-secondary); font-size: 13px;">Сменить тему</span>
                 </div>
             </div>
@@ -60,20 +58,18 @@
                 </div>
 
                 <div class="action-buttons">
-                    <button class="btn btn-primary btn-large" onclick="window.showCreateGroup()">
+                    <button class="btn btn-primary btn-large" onclick="showCreateGroup()">
                         <span class="btn-icon">➕</span>
                         Создать пространство
                     </button>
-                    <button class="btn btn-outline btn-large" onclick="window.showJoinGroup()">
+                    <button class="btn btn-outline btn-large" onclick="showJoinGroup()">
                         <span class="btn-icon">🔑</span>
                         Присоединиться
                     </button>
                 </div>
 
                 <div class="action-footer">
-                    <button class="theme-toggle-small" onclick="window.toggleTheme()" id="themeToggleAction">
-                        🌙
-                    </button>
+                    <button class="theme-toggle-small" onclick="toggleTheme()" id="themeToggleAction">🌙</button>
                     <span style="color: var(--text-secondary); font-size: 13px;">Сменить тему</span>
                 </div>
             </div>
@@ -88,7 +84,7 @@
                     <label>Название</label>
                     <input type="text" id="groupName" placeholder="Введите название" class="form-input">
                 </div>
-                <button class="btn btn-primary btn-full" onclick="window.createGroup()">Создать</button>
+                <button class="btn btn-primary btn-full" onclick="createGroup()">Создать</button>
             </div>
         </div>
 
@@ -100,7 +96,7 @@
                     <label>Код приглашения</label>
                     <input type="text" id="inviteCode" placeholder="Введите код" class="form-input">
                 </div>
-                <button class="btn btn-primary btn-full" onclick="window.joinGroup()">Присоединиться</button>
+                <button class="btn btn-primary btn-full" onclick="joinGroup()">Присоединиться</button>
             </div>
         </div>
 
@@ -109,7 +105,7 @@
                 <button class="modal-close" onclick="closeModal('inviteCodeModal')">✕</button>
                 <h3 class="modal-title">Код приглашения</h3>
                 <div class="invite-code-display" id="inviteCodeDisplay">ABC123</div>
-                <button class="btn btn-primary btn-full" onclick="window.copyInviteCode()">📋 Скопировать</button>
+                <button class="btn btn-primary btn-full" onclick="copyInviteCode()">📋 Скопировать</button>
             </div>
         </div>
 
@@ -128,9 +124,7 @@
                     <span class="header-role" id="userRoleBadge">Участник</span>
                 </div>
                 <div class="header-right">
-                    <button class="theme-toggle" onclick="window.toggleTheme()" id="themeToggleApp">
-                        🌙
-                    </button>
+                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleApp">🌙</button>
                 </div>
             </header>
 
@@ -140,28 +134,28 @@
             </div>
 
             <div class="tabs">
-                <button class="tab active" data-tab="today" onclick="window.switchTab('today')">
+                <button class="tab active" data-tab="today" onclick="switchTab('today')">
                     <span class="tab-icon">📅</span>
                     <span class="tab-label">Сегодня</span>
                 </button>
-                <button class="tab" data-tab="tomorrow" onclick="window.switchTab('tomorrow')">
+                <button class="tab" data-tab="tomorrow" onclick="switchTab('tomorrow')">
                     <span class="tab-icon">🔮</span>
                     <span class="tab-label">Завтра</span>
                 </button>
-                <button class="tab" data-tab="week" onclick="window.switchTab('week')">
+                <button class="tab" data-tab="week" onclick="switchTab('week')">
                     <span class="tab-icon">📆</span>
                     <span class="tab-label">Неделя</span>
                 </button>
-                <button class="tab" data-tab="homework" onclick="window.switchTab('homework')">
+                <button class="tab" data-tab="homework" onclick="switchTab('homework')">
                     <span class="tab-icon">📝</span>
                     <span class="tab-label">ДЗ</span>
                 </button>
-                <button class="tab" data-tab="chat" onclick="window.switchTab('chat')">
+                <button class="tab" data-tab="chat" onclick="switchTab('chat')">
                     <span class="tab-icon">💬</span>
                     <span class="tab-label">Чат</span>
                     <span class="tab-badge hidden" id="chatBadge">0</span>
                 </button>
-                <button class="tab admin-tab" data-tab="admin" onclick="window.switchTab('admin')" id="adminTab" style="display:none">
+                <button class="tab admin-tab" data-tab="admin" onclick="switchTab('admin')" id="adminTab" style="display:none">
                     <span class="tab-icon">⚙️</span>
                     <span class="tab-label">Админ</span>
                 </button>
@@ -186,9 +180,9 @@
 
                 <div id="tabWeek" class="tab-panel">
                     <div class="week-controls">
-                        <button class="btn btn-sm btn-outline" onclick="window.changeWeek(-1)">‹</button>
+                        <button class="btn btn-sm btn-outline" onclick="changeWeek(-1)">‹</button>
                         <span class="week-label" id="weekLabel">Текущая неделя</span>
-                        <button class="btn btn-sm btn-outline" onclick="window.changeWeek(1)">›</button>
+                        <button class="btn btn-sm btn-outline" onclick="changeWeek(1)">›</button>
                     </div>
                     <div id="weekSchedule"></div>
                 </div>
@@ -202,7 +196,7 @@
                         <div class="chat-messages" id="chatMessages"></div>
                         <div class="chat-input">
                             <input type="text" id="chatInput" placeholder="Сообщение..." class="chat-input-field">
-                            <button class="btn btn-primary btn-sm" onclick="window.sendMessage()">➤</button>
+                            <button class="btn btn-primary btn-sm" onclick="sendMessage()">➤</button>
                         </div>
                     </div>
                 </div>
@@ -216,7 +210,6 @@
 
     <!-- СКРИПТЫ -->
     <script>
-        // Эмуляция Telegram WebApp для браузера
         window.Telegram = window.Telegram || {
             WebApp: {
                 expand: function() { console.log('Telegram WebApp expanded (emulated)'); },
