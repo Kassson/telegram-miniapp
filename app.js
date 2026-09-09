@@ -822,4 +822,58 @@
     // ==================== ВСПОМОГАТЕЛЬНЫЕ ====================
     function showToast(message) {
         const existing = document.querySelector('.notification-toast');
-        if (existing) existing.remove
+        if (existing) existing.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = 'notification-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(function() {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(20px)';
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 3000);
+    }
+    
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.remove('active');
+    }
+    
+    // ==================== ОБРАБОТЧИКИ СОБЫТИЙ ====================
+    function setupEventListeners() {
+        // Чат - Enter для отправки
+        if (DOM.chatInput) {
+            DOM.chatInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
+    }
+    
+    // ==================== ЭКСПОРТ ФУНКЦИЙ В ГЛОБАЛЬНЫЙ ОБЪЕКТ ====================
+    window.registerUser = registerUser;
+    window.toggleTheme = toggleTheme;
+    window.showCreateGroup = showCreateGroup;
+    window.showJoinGroup = showJoinGroup;
+    window.createGroup = createGroup;
+    window.joinGroup = joinGroup;
+    window.copyInviteCode = copyInviteCode;
+    window.switchTab = switchTab;
+    window.changeWeek = changeWeek;
+    window.showToast = showToast;
+    window.closeModal = closeModal;
+    window.markHomeworkDone = markHomeworkDone;
+    window.showAddHomework = showAddHomework;
+    window.addHomework = addHomework;
+    window.deleteHomework = deleteHomework;
+    window.sendMessage = sendMessage;
+    window.loadAdminPanel = loadAdminPanel;
+    window.loadChatMessages = loadChatMessages;
+    
+    // ==================== ЗАПУСК ====================
+    document.addEventListener('DOMContentLoaded', init);
+    
+})();
