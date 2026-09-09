@@ -1,25 +1,17 @@
 // ============================================================
-// ПРОСТОЙ РАБОЧИЙ КОД — БЕЗ КОНФЛИКТОВ ПЕРЕМЕННЫХ
+// APP.JS — ПОЛНАЯ ВЕРСИЯ
 // ============================================================
 
-// Глобальные переменные — ОДИН РАЗ
 var AppTG = null;
 var AppUser = null;
 var AppLobbyId = null;
+var AppInviteCode = null;
 var AppIsAdmin = false;
 var AppRegistered = null;
-var AppCache = {};
 var WeekOffset = 0;
-var ScheduleCache = {};
-var HomeworkCache = {};
 
-// ============================================================
-// ИНИЦИАЛИЗАЦИЯ
-// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Приложение загружено!');
-    
-    // Telegram
     try {
         if (window.Telegram && window.Telegram.WebApp) {
             AppTG = window.Telegram.WebApp;
@@ -31,20 +23,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('regNickname').value = user.username ? '@' + user.username : '';
             }
         }
-    } catch(e) {
-        console.log('Telegram не доступен');
-    }
-    
-    // Тема
+    } catch(e) { console.log('Telegram не доступен'); }
     loadTheme();
-    
-    // Даты
     updateDates();
+    loadSavedData();
 });
 
-// ============================================================
-// ТЕМА
-// ============================================================
+function loadSavedData() {
+    var savedName = localStorage.getItem('user_fullname');
+    var savedNick = localStorage.getItem('user_nickname');
+    var savedCode = localStorage.getItem('invite_code');
+    if (savedName) {
+        var parts = savedName.split(' ');
+        document.getElementById('regFirstName').value = parts[0] || '';
+        document.getElementById('regLastName').value = parts.slice(1).join(' ') || '';
+    }
+    if (savedNick) {
+        document.getElementById('regNickname').value = savedNick;
+    }
+    if (savedCode) {
+        AppInviteCode = savedCode;
+        var display = document.getElementById('inviteCodeDisplay');
+        if (display) display.textContent = savedCode;
+    }
+}
+
 function loadTheme() {
     var theme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
@@ -72,7 +75,6 @@ function updateThemeIcons(theme) {
 // РЕГИСТРАЦИЯ
 // ============================================================
 function registerUser() {
-    console.log('registerUser');
     var firstName = document.getElementById('regFirstName').value.trim();
     var lastName = document.getElementById('regLastName').value.trim();
     var nickname = document.getElementById('regNickname').value.trim();
@@ -88,9 +90,11 @@ function registerUser() {
         nickname: nickname || '@user'
     };
     
+    localStorage.setItem('user_fullname', firstName + ' ' + lastName);
+    localStorage.setItem('user_nickname', nickname || '@user');
+    
     document.getElementById('registerPage').classList.remove('active');
     document.getElementById('actionPage').classList.add('active');
-    
     document.getElementById('userDisplayName').textContent = firstName + ' ' + lastName;
     document.getElementById('userDisplayNickname').textContent = nickname || '@user';
     document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
@@ -115,43 +119,52 @@ function createGroup() {
     }
     
     var tgId = AppTG?.initDataUnsafe?.user?.id || '123456789';
+    showToast('⏳ Создание...');
     
     callApi('createLobby', {
         creatorId: 'user_' + tgId,
         lobbyName: name
     }).then(function(result) {
+        console.log('createLobby ответ:', result);
         if (result && result.lobbyId) {
             closeModal('createGroupModal');
+            AppInviteCode = result.inviteCode;
+            localStorage.setItem('invite_code', result.inviteCode);
+            
             var fullName = AppRegistered ? 
                 AppRegistered.firstName + ' ' + AppRegistered.lastName : 
-                'Пользователь';
+                localStorage.getItem('user_fullname') || 'Пользователь';
             
             callApi('joinLobby', {
                 tgId: String(tgId),
                 fullName: fullName,
                 inviteCode: result.inviteCode
             }).then(function(joinResult) {
+                console.log('joinLobby ответ:', joinResult);
                 if (joinResult.success) {
                     AppLobbyId = result.lobbyId;
                     AppUser = {
                         userId: joinResult.userId,
                         lobbyId: result.lobbyId,
                         role: 'super_admin',
-                        fullName: fullName
+                        fullName: fullName,
+                        nickname: localStorage.getItem('user_nickname') || ''
                     };
                     AppIsAdmin = true;
-                    showInviteCode(result.inviteCode);
                     showApp();
                     showToast('✅ Пространство создано!');
+                    showInviteCode(result.inviteCode);
                 } else {
-                    showToast('❌ ' + (joinResult.error || 'Ошибка'));
+                    showToast('❌ ' + (joinResult.error || 'Ошибка присоединения'));
                 }
+            }).catch(function(err) {
+                showToast('❌ ' + err.message);
             });
         } else {
             showToast('❌ ' + (result.error || 'Ошибка создания'));
         }
     }).catch(function(err) {
-        showToast('❌ Ошибка: ' + err.message);
+        showToast('❌ ' + err.message);
     });
 }
 
@@ -165,21 +178,28 @@ function joinGroup() {
     var tgId = AppTG?.initDataUnsafe?.user?.id || '123456789';
     var fullName = AppRegistered ? 
         AppRegistered.firstName + ' ' + AppRegistered.lastName : 
-        'Пользователь';
+        localStorage.getItem('user_fullname') || 'Пользователь';
+    
+    showToast('⏳ Присоединение...');
     
     callApi('joinLobby', {
         tgId: String(tgId),
         fullName: fullName,
         inviteCode: code
     }).then(function(result) {
+        console.log('joinLobby ответ:', result);
         if (result.success) {
             closeModal('joinGroupModal');
             AppLobbyId = result.lobbyId;
+            AppInviteCode = code;
+            localStorage.setItem('invite_code', code);
+            
             AppUser = {
                 userId: result.userId,
                 lobbyId: result.lobbyId,
                 role: result.role,
-                fullName: fullName
+                fullName: fullName,
+                nickname: localStorage.getItem('user_nickname') || ''
             };
             AppIsAdmin = result.role === 'admin' || result.role === 'super_admin';
             showApp();
@@ -188,13 +208,15 @@ function joinGroup() {
             showToast('❌ ' + (result.error || 'Ошибка'));
         }
     }).catch(function(err) {
-        showToast('❌ Ошибка: ' + err.message);
+        showToast('❌ ' + err.message);
     });
 }
 
 function showInviteCode(code) {
-    document.getElementById('inviteCodeDisplay').textContent = code;
-    document.getElementById('inviteCodeModal').classList.add('active');
+    var display = document.getElementById('inviteCodeDisplay');
+    if (display) display.textContent = code;
+    var modal = document.getElementById('inviteCodeModal');
+    if (modal) modal.classList.add('active');
 }
 
 function copyInviteCode() {
@@ -210,15 +232,45 @@ function copyInviteCode() {
 // ГЛАВНОЕ ПРИЛОЖЕНИЕ
 // ============================================================
 function showApp() {
+    console.log('✅ showApp вызвана');
+    
     document.getElementById('actionPage').classList.remove('active');
     document.getElementById('appPage').classList.add('active');
     
-    document.getElementById('groupNameDisplay').textContent = 'Workspaces';
-    document.getElementById('userNameDisplay').textContent = AppUser?.fullName || 'Пользователь';
-    document.getElementById('userNicknameDisplay').textContent = AppUser?.nickname || '';
+    var groupNameDisplay = document.getElementById('groupNameDisplay');
+    if (groupNameDisplay) {
+        groupNameDisplay.textContent = AppUser?.lobbyId || 'Workspaces';
+    }
+    
+    var userNameDisplay = document.getElementById('userNameDisplay');
+    if (userNameDisplay) {
+        userNameDisplay.textContent = AppUser?.fullName || 'Пользователь';
+    }
+    
+    var userNicknameDisplay = document.getElementById('userNicknameDisplay');
+    if (userNicknameDisplay) {
+        userNicknameDisplay.textContent = AppUser?.nickname || '';
+    }
+    
+    var inviteDisplay = document.getElementById('inviteCodeDisplay');
+    if (inviteDisplay) {
+        if (AppInviteCode) {
+            inviteDisplay.textContent = AppInviteCode;
+        } else if (AppUser?.lobbyId) {
+            callApi('getInviteCode', { lobbyId: AppUser.lobbyId }).then(function(result) {
+                if (result && result.inviteCode) {
+                    AppInviteCode = result.inviteCode;
+                    inviteDisplay.textContent = result.inviteCode;
+                    localStorage.setItem('invite_code', result.inviteCode);
+                }
+            });
+        }
+    }
     
     if (AppIsAdmin) {
-        document.getElementById('adminTab').style.display = 'flex';
+        var adminTab = document.getElementById('adminTab');
+        if (adminTab) adminTab.style.display = 'flex';
+        
         var badge = document.getElementById('userRoleBadge');
         if (badge) {
             badge.textContent = 'Админ';
@@ -226,6 +278,7 @@ function showApp() {
         }
     }
     
+    updateDates();
     loadTodaySchedule();
     loadTomorrowSchedule();
     loadWeekSchedule();
@@ -237,13 +290,16 @@ function showApp() {
 // ============================================================
 function callApi(action, params) {
     return new Promise(function(resolve, reject) {
-        var callback = 'cb_' + Date.now();
+        var callback = 'cb_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         var url = window.CONFIG.API_URL + 
             '?action=' + action + 
             '&params=' + encodeURIComponent(JSON.stringify(params)) + 
             '&callback=' + callback;
         
+        console.log('📡 Запрос:', url);
+        
         window[callback] = function(data) {
+            console.log('📡 Ответ:', data);
             delete window[callback];
             resolve(data);
         };
@@ -251,17 +307,20 @@ function callApi(action, params) {
         var script = document.createElement('script');
         script.src = url;
         script.onerror = function() {
+            console.error('❌ Ошибка загрузки скрипта');
             delete window[callback];
-            reject(new Error('Ошибка запроса'));
+            reject(new Error('Ошибка запроса к серверу'));
         };
-        document.body.appendChild(script);
         
         setTimeout(function() {
             if (window[callback]) {
+                console.error('❌ Таймаут');
                 delete window[callback];
                 reject(new Error('Таймаут'));
             }
-        }, 10000);
+        }, 15000);
+        
+        document.body.appendChild(script);
     });
 }
 
@@ -271,10 +330,8 @@ function callApi(action, params) {
 function updateDates() {
     var now = new Date();
     var weekdays = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
-    
     document.getElementById('todayDate').textContent = now.toLocaleDateString('ru-RU');
     document.getElementById('todayWeekday').textContent = weekdays[now.getDay()];
-    
     var tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('tomorrowDate').textContent = tomorrow.toLocaleDateString('ru-RU');
@@ -287,7 +344,6 @@ function loadTodaySchedule() {
         container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет данных</h3></div>';
         return;
     }
-    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     callApi('getSchedule', { lobbyId: AppLobbyId, dayOffset: 0 }).then(function(result) {
@@ -295,21 +351,17 @@ function loadTodaySchedule() {
             container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
             return;
         }
-        
         var now = new Date();
         var currentTime = now.getHours() * 60 + now.getMinutes();
         var html = '';
-        
         for (var i = 0; i < result.length; i++) {
             var lesson = result[i];
             var parts = lesson.time.split(':').map(Number);
             var lessonTime = parts[0] * 60 + parts[1];
             var endTime = lessonTime + 45;
-            
             var status = 'future';
             var label = '🟢 Будущий';
             var cls = 'future';
-            
             if (currentTime >= lessonTime && currentTime < endTime) {
                 status = 'current';
                 label = '🔴 Идёт';
@@ -319,7 +371,6 @@ function loadTodaySchedule() {
                 label = '✅ Прошёл';
                 cls = 'past';
             }
-            
             html += '<div class="lesson-item ' + (status === 'current' ? 'current' : status === 'future' ? 'future' : '') + '">';
             html += '<div class="lesson-time">' + lesson.time + '</div>';
             html += '<div class="lesson-info">';
@@ -332,7 +383,6 @@ function loadTodaySchedule() {
             html += '<span class="lesson-status ' + cls + '">' + label + '</span>';
             html += '</div>';
         }
-        
         container.innerHTML = html;
     }).catch(function(err) {
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
@@ -345,7 +395,6 @@ function loadTomorrowSchedule() {
         container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет данных</h3></div>';
         return;
     }
-    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     callApi('getSchedule', { lobbyId: AppLobbyId, dayOffset: 1 }).then(function(result) {
@@ -353,7 +402,6 @@ function loadTomorrowSchedule() {
             container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
             return;
         }
-        
         var html = '';
         for (var i = 0; i < result.length; i++) {
             var lesson = result[i];
@@ -365,7 +413,6 @@ function loadTomorrowSchedule() {
             html += '</div>';
             html += '</div>';
         }
-        
         container.innerHTML = html;
     }).catch(function(err) {
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
@@ -387,24 +434,19 @@ function loadWeekSchedule() {
         container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет данных</h3></div>';
         return;
     }
-    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
-    
     var weekdays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
     var now = new Date();
     var start = new Date(now);
     start.setDate(now.getDate() - now.getDay() + 1 + WeekOffset * 7);
-    
     var html = '';
     var loaded = 0;
     var total = 7;
-    
     for (var i = 0; i < 7; i++) {
         (function(index) {
             var date = new Date(start);
             date.setDate(date.getDate() + index);
             var offset = (index - (now.getDay() === 0 ? 7 : now.getDay()) + 1) + WeekOffset * 7;
-            
             callApi('getSchedule', { lobbyId: AppLobbyId, dayOffset: offset }).then(function(result) {
                 var isWeekend = index >= 5;
                 html += '<div class="day-card" style="' + (isWeekend ? 'opacity:0.6;' : '') + '">';
@@ -415,7 +457,6 @@ function loadWeekSchedule() {
                     html += '<button class="btn btn-sm btn-outline" onclick="showToast(\'✏️ Редактирование в разработке\')">✏️</button>';
                 }
                 html += '</div>';
-                
                 if (result && result.length > 0) {
                     for (var j = 0; j < result.length; j++) {
                         var l = result[j];
@@ -427,10 +468,8 @@ function loadWeekSchedule() {
                 } else {
                     html += '<div style="color:#86868b;font-size:13px;padding:4px 0;">Нет уроков</div>';
                 }
-                
                 html += '</div>';
                 loaded++;
-                
                 if (loaded === total) {
                     container.innerHTML = html;
                 }
@@ -448,7 +487,6 @@ function loadHomework() {
         container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><h3>Нет данных</h3></div>';
         return;
     }
-    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     callApi('getHomework', { lobbyId: AppLobbyId }).then(function(result) {
@@ -461,18 +499,15 @@ function loadHomework() {
             container.innerHTML = html;
             return;
         }
-        
         var html = '';
         if (AppIsAdmin) {
             html += '<button class="btn btn-primary btn-full" style="margin-bottom:12px;" onclick="showAddHomework()">➕ Добавить ДЗ</button>';
         }
-        
         for (var i = 0; i < result.length; i++) {
             var hw = result[i];
             var done = hw.progress ? hw.progress.filter(function(p) { return p.isDone; }).length : 0;
             var total = hw.progress ? hw.progress.length : 0;
             var isDone = hw.progress ? hw.progress.some(function(p) { return p.userId === AppUser?.userId && p.isDone; }) : false;
-            
             html += '<div class="card">';
             html += '<div class="homework-item">';
             html += '<div class="homework-header">';
@@ -500,7 +535,6 @@ function loadHomework() {
             html += '</div>';
             html += '</div>';
         }
-        
         container.innerHTML = html;
     }).catch(function(err) {
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
@@ -512,7 +546,6 @@ function markHomeworkDone(homeworkId) {
         showToast('❌ Ошибка: нет данных');
         return;
     }
-    
     callApi('markHomeworkDone', {
         lobbyId: AppLobbyId,
         homeworkId: homeworkId,
@@ -520,7 +553,6 @@ function markHomeworkDone(homeworkId) {
     }).then(function(result) {
         if (result.success) {
             showToast('✅ ДЗ отмечено!');
-            HomeworkCache = {};
             loadHomework();
         } else {
             showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
@@ -531,14 +563,12 @@ function markHomeworkDone(homeworkId) {
 function showAddHomework() {
     var modal = document.getElementById('editModal');
     var content = document.getElementById('editModalContent');
-    
     content.innerHTML = 
         '<h3 class="modal-title">📝 Добавить ДЗ</h3>' +
         '<div class="form-group"><label>Предмет</label><input type="text" id="hwSubject" class="form-input" placeholder="Математика"></div>' +
         '<div class="form-group"><label>Задание</label><textarea id="hwDescription" class="form-input" rows="3" placeholder="Описание"></textarea></div>' +
         '<div class="form-group"><label>Срок</label><input type="date" id="hwDueDate" class="form-input"></div>' +
         '<button class="btn btn-primary btn-full" onclick="addHomework()">➕ Добавить</button>';
-    
     modal.classList.add('active');
 }
 
@@ -546,17 +576,14 @@ function addHomework() {
     var subject = document.getElementById('hwSubject').value.trim();
     var description = document.getElementById('hwDescription').value.trim();
     var dueDate = document.getElementById('hwDueDate').value;
-    
     if (!subject || !description) {
         showToast('Заполните все поля');
         return;
     }
-    
     if (!AppLobbyId || !AppUser) {
         showToast('❌ Ошибка: нет данных');
         return;
     }
-    
     callApi('addHomework', {
         lobbyId: AppLobbyId,
         subject: subject,
@@ -567,7 +594,6 @@ function addHomework() {
         if (result.success) {
             showToast('✅ ДЗ добавлено!');
             closeModal('editModal');
-            HomeworkCache = {};
             loadHomework();
         } else {
             showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
@@ -577,7 +603,6 @@ function addHomework() {
 
 function deleteHomework(homeworkId) {
     if (!confirm('Удалить это ДЗ?')) return;
-    HomeworkCache = {};
     showToast('🗑️ ДЗ удалено');
     loadHomework();
 }
@@ -587,23 +612,197 @@ function deleteHomework(homeworkId) {
 // ============================================================
 function loadChatMessages() {
     var container = document.getElementById('chatMessages');
-    if (container) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">💬</div><h3>Загрузка чата...</h3></div>';
+    if (!container) return;
+    
+    if (!AppLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">💬</div><h3>Нет данных</h3></div>';
+        return;
     }
+    
+    container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    callApi('getChatMessages', { lobbyId: AppLobbyId, offset: 0, limit: 50 }).then(function(result) {
+        if (!result || !Array.isArray(result) || result.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">💬</div><h3>Нет сообщений</h3><p>Начните общение!</p></div>';
+            return;
+        }
+        var html = '';
+        var userId = AppUser?.userId;
+        for (var i = 0; i < result.length; i++) {
+            var msg = result[i];
+            var isOwn = msg.userId === userId;
+            html += '<div class="chat-message ' + (isOwn ? 'own' : 'other') + '">';
+            if (!isOwn) {
+                html += '<div class="msg-sender">' + (msg.senderName || 'Пользователь') + '</div>';
+            }
+            html += '<div>' + msg.text + '</div>';
+            html += '<span class="msg-time">' + (msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString() : '') + '</span>';
+            html += '</div>';
+        }
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    }).catch(function(err) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
+    });
 }
 
 function sendMessage() {
-    showToast('💬 Чат загружается...');
+    var input = document.getElementById('chatInput');
+    var text = input?.value?.trim();
+    if (!text) return;
+    
+    if (!AppLobbyId || !AppUser) {
+        showToast('❌ Ошибка: нет данных');
+        return;
+    }
+    
+    var message = {
+        lobbyId: AppLobbyId,
+        userId: AppUser.userId,
+        senderName: AppUser.fullName || 'Пользователь',
+        text: text,
+        createdAt: new Date().toISOString()
+    };
+    
+    callApi('sendChatMessage', message).then(function(result) {
+        if (result.success) {
+            input.value = '';
+            loadChatMessages();
+        } else {
+            showToast('❌ Ошибка отправки');
+        }
+    }).catch(function(err) {
+        showToast('❌ ' + err.message);
+    });
 }
 
 // ============================================================
-// АДМИН
+// АДМИН ПАНЕЛЬ
 // ============================================================
 function loadAdminPanel() {
     var container = document.getElementById('adminContent');
-    if (container) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">⚙️</div><h3>Загрузка админ-панели...</h3></div>';
+    if (!container) return;
+    
+    if (!AppLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">⚙️</div><h3>Нет данных</h3></div>';
+        return;
     }
+    
+    container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    callApi('getMembers', { lobbyId: AppLobbyId }).then(function(result) {
+        if (!result || !Array.isArray(result)) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
+            return;
+        }
+        
+        var roleLabels = {
+            'super_admin': '👑 Главный админ',
+            'admin': '⚙️ Админ',
+            'user': '👤 Участник'
+        };
+        
+        var html = '<div class="admin-section"><div class="admin-section-title">👥 Участники (' + result.length + ')</div><div class="card">';
+        html += '<button class="btn btn-sm btn-primary" style="margin-bottom:12px;width:100%;" onclick="showInviteCode(\'' + (AppInviteCode || '') + '\')">📋 Код приглашения</button>';
+        
+        for (var i = 0; i < result.length; i++) {
+            var member = result[i];
+            var isSelf = member.userId === AppUser?.userId;
+            var canManage = AppUser?.role === 'super_admin' || 
+                           (AppUser?.role === 'admin' && member.role !== 'super_admin');
+            
+            html += '<div class="member-item ' + (member.isBlocked ? 'blocked' : '') + '">';
+            html += '<div class="member-info">';
+            html += '<span class="member-name">' + member.fullName + '</span>';
+            if (member.nickname) {
+                html += '<span class="member-nickname">' + member.nickname + '</span>';
+            }
+            html += '<span class="member-role ' + (member.role === 'admin' || member.role === 'super_admin' ? member.role : '') + '">';
+            html += roleLabels[member.role] || member.role;
+            html += '</span>';
+            if (member.isBlocked) {
+                html += '<span class="badge badge-danger">🔒 Заблокирован</span>';
+            }
+            if (isSelf) {
+                html += '<span class="badge badge-info">Вы</span>';
+            }
+            html += '</div>';
+            
+            if (!isSelf && canManage) {
+                html += '<div class="member-actions">';
+                html += '<button class="btn btn-sm ' + (member.isBlocked ? 'btn-success' : 'btn-danger') + '" onclick="toggleUserBlock(\'' + member.userId + '\')">';
+                html += member.isBlocked ? '🔓' : '🔒';
+                html += '</button>';
+                html += '<button class="btn btn-sm btn-warning" onclick="showNicknameModal(\'' + member.userId + '\')">✏️</button>';
+                if (AppUser?.role === 'super_admin') {
+                    html += '<button class="btn btn-sm btn-danger" onclick="kickUser(\'' + member.userId + '\')">🚫</button>';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+        
+        html += '</div></div>';
+        container.innerHTML = html;
+    }).catch(function(err) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
+    });
+}
+
+function toggleUserBlock(userId) {
+    callApi('toggleBlock', {
+        lobbyId: AppLobbyId,
+        userId: userId,
+        adminId: AppUser.userId
+    }).then(function(result) {
+        if (result.success) {
+            showToast(result.isBlocked ? '🔒 Пользователь заблокирован' : '🔓 Пользователь разблокирован');
+            loadAdminPanel();
+        } else {
+            showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    });
+}
+
+function showNicknameModal(userId) {
+    var modal = document.getElementById('editModal');
+    var content = document.getElementById('editModalContent');
+    content.innerHTML = 
+        '<h3 class="modal-title">✏️ Назначить никнейм</h3>' +
+        '<div class="form-group"><label>Никнейм</label><input type="text" id="nicknameInput" class="form-input" placeholder="Например: Староста"></div>' +
+        '<button class="btn btn-primary btn-full" onclick="setNickname(\'' + userId + '\')">💾 Сохранить</button>';
+    modal.classList.add('active');
+}
+
+function setNickname(userId) {
+    var nickname = document.getElementById('nicknameInput').value.trim();
+    if (!nickname) {
+        showToast('Введите никнейм');
+        return;
+    }
+    callApi('setNickname', {
+        lobbyId: AppLobbyId,
+        userId: userId,
+        nickname: nickname,
+        adminId: AppUser.userId
+    }).then(function(result) {
+        if (result.success) {
+            showToast('✅ Никнейм назначен!');
+            closeModal('editModal');
+            loadAdminPanel();
+            if (userId === AppUser?.userId) {
+                AppUser.nickname = nickname;
+                document.getElementById('userNicknameDisplay').textContent = nickname;
+            }
+        } else {
+            showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    });
+}
+
+function kickUser(userId) {
+    if (!confirm('Вы уверены?')) return;
+    showToast('🚫 Функция в разработке');
 }
 
 // ============================================================
