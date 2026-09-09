@@ -1,21 +1,53 @@
-// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
-let tg = window.Telegram.WebApp;
-let currentUser = null;
-let currentLobbyId = null;
-let currentWeekOffset = 0;
-let isAdmin = false;
-let registeredUser = null;
-let appCache = {}; // Кэш для данных
-
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', function() {
-    tg.expand();
+    console.log('✅ app.js загружен!');
+    
+    // Инициализация Telegram WebApp
+    if (tg) {
+        tg.expand();
+        const tgUser = tg.initDataUnsafe?.user;
+        if (tgUser) {
+            console.log('👤 Пользователь Telegram:', tgUser);
+            // Заполняем поля регистрации
+            document.getElementById('regFirstName').value = tgUser.first_name || '';
+            document.getElementById('regLastName').value = tgUser.last_name || '';
+            document.getElementById('regNickname').value = tgUser.username ? '@' + tgUser.username : '';
+        }
+    }
+    
     loadTheme();
-    checkTelegramUser();
+    checkUserFromTelegram();
 });
+
+// ==================== ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ ====================
+async function checkUserFromTelegram() {
+    if (!tg) return;
+    
+    const tgUser = tg.initDataUnsafe?.user;
+    if (!tgUser) return;
+    
+    try {
+        const result = await callApi('getUser', { tgId: String(tgUser.id) });
+        if (result && result.userId) {
+            currentUser = result;
+            currentLobbyId = result.lobbyId;
+            isAdmin = result.role === 'admin' || result.role === 'super_admin';
+            
+            document.getElementById('registerPage').classList.remove('active');
+            document.getElementById('actionPage').classList.add('active');
+            
+            document.getElementById('userDisplayName').textContent = result.fullName;
+            document.getElementById('userDisplayNickname').textContent = result.nickname || result.tgUsername || '@user';
+            document.getElementById('userAvatar').textContent = result.fullName.charAt(0).toUpperCase();
+        }
+    } catch(error) {
+        console.error('Check user error:', error);
+    }
+}
 
 // ==================== ТЕМА ====================
 function toggleTheme() {
+    console.log('🔄 Переключение темы');
     const html = document.documentElement;
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -39,100 +71,57 @@ function updateThemeButtons(theme) {
 
 // ==================== РЕГИСТРАЦИЯ ====================
 function registerUser() {
+    console.log('✅ registerUser вызвана!');
+    
     const firstName = document.getElementById('regFirstName').value.trim();
     const lastName = document.getElementById('regLastName').value.trim();
     const nickname = document.getElementById('regNickname').value.trim();
     
+    console.log('Имя:', firstName, 'Фамилия:', lastName);
+    
     if (!firstName || !lastName) {
-        showToast('Пожалуйста, введите имя и фамилию');
+        alert('Пожалуйста, введите имя и фамилию');
         return;
     }
     
-    registeredUser = { firstName, lastName, nickname: nickname || '@user' };
+    registeredUser = {
+        firstName: firstName,
+        lastName: lastName,
+        nickname: nickname || '@user'
+    };
     
+    // Переключаем страницы
     document.getElementById('registerPage').classList.remove('active');
     document.getElementById('actionPage').classList.add('active');
     
+    // Обновляем отображение
     document.getElementById('userDisplayName').textContent = firstName + ' ' + lastName;
     document.getElementById('userDisplayNickname').textContent = nickname || '@user';
     document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
-}
-
-// ==================== АУТЕНТИФИКАЦИЯ ====================
-async function checkUser(tgId) {
-    try {
-        const result = await callApi('getUser', { tgId: String(tgId) });
-        if (result && result.userId) {
-            currentUser = result;
-            currentLobbyId = result.lobbyId;
-            isAdmin = result.role === 'admin' || result.role === 'super_admin';
-            
-            document.getElementById('registerPage').classList.remove('active');
-            document.getElementById('actionPage').classList.add('active');
-            
-            document.getElementById('userDisplayName').textContent = result.fullName;
-            document.getElementById('userDisplayNickname').textContent = result.nickname || result.tgUsername || '@user';
-            document.getElementById('userAvatar').textContent = result.fullName.charAt(0).toUpperCase();
-        }
-    } catch(error) {
-        console.error('Check user error:', error);
-    }
-}
-
-// ==================== API ВЫЗОВЫ С КЭШИРОВАНИЕМ ====================
-async function callApi(action, params) {
-    const cacheKey = action + JSON.stringify(params);
     
-    // Проверяем кэш в памяти
-    if (appCache[cacheKey]) {
-        console.log('✅ Использую кэш для:', action);
-        return appCache[cacheKey];
-    }
-    
-    try {
-        const response = await fetch(CONFIG.API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, params })
-        });
-        const data = await response.json();
-        
-        // Сохраняем в кэш
-        appCache[cacheKey] = data;
-        
-        // Очищаем кэш через 5 минут
-        setTimeout(() => {
-            delete appCache[cacheKey];
-        }, 300000);
-        
-        return data;
-    } catch(error) {
-        console.error('API Error:', error);
-        return { success: false, error: error.message };
-    }
+    console.log('✅ Переход на экран выбора действия');
 }
 
 // ==================== СОЗДАНИЕ / ПРИСОЕДИНЕНИЕ ====================
 function showCreateGroup() {
+    console.log('✅ showCreateGroup вызвана');
     document.getElementById('createGroupModal').classList.add('active');
 }
 
 function showJoinGroup() {
+    console.log('✅ showJoinGroup вызвана');
     document.getElementById('joinGroupModal').classList.add('active');
 }
 
 async function createGroup() {
+    console.log('✅ createGroup вызвана');
     const groupName = document.getElementById('groupName').value.trim();
     if (!groupName) {
         showToast('Введите название пространства');
         return;
     }
     
-    const tgId = tg.initDataUnsafe?.user?.id;
-    if (!tgId) {
-        showToast('Ошибка авторизации');
-        return;
-    }
+    const tgId = tg?.initDataUnsafe?.user?.id || '123456789';
     
     try {
         const result = await callApi('createLobby', {
@@ -145,7 +134,7 @@ async function createGroup() {
             
             const fullName = registeredUser ? 
                 registeredUser.firstName + ' ' + registeredUser.lastName : 
-                tg.initDataUnsafe?.user?.first_name || 'Пользователь';
+                'Пользователь';
             
             const joinResult = await callApi('joinLobby', {
                 tgId: String(tgId),
@@ -173,22 +162,19 @@ async function createGroup() {
 }
 
 async function joinGroup() {
+    console.log('✅ joinGroup вызвана');
     const inviteCode = document.getElementById('inviteCode').value.trim();
     if (!inviteCode) {
         showToast('Введите код приглашения');
         return;
     }
     
-    const tgId = tg.initDataUnsafe?.user?.id;
-    if (!tgId) {
-        showToast('Ошибка авторизации');
-        return;
-    }
+    const tgId = tg?.initDataUnsafe?.user?.id || '123456789';
     
     try {
         const fullName = registeredUser ? 
             registeredUser.firstName + ' ' + registeredUser.lastName : 
-            tg.initDataUnsafe?.user?.first_name || 'Пользователь';
+            'Пользователь';
         
         const result = await callApi('joinLobby', {
             tgId: String(tgId),
@@ -230,6 +216,7 @@ function copyInviteCode() {
 
 // ==================== ГЛАВНОЕ ПРИЛОЖЕНИЕ ====================
 function showApp() {
+    console.log('✅ showApp вызвана');
     document.getElementById('actionPage').classList.remove('active');
     document.getElementById('appPage').classList.add('active');
     
@@ -254,8 +241,36 @@ function showApp() {
     }
 }
 
-// ==================== УПРАВЛЕНИЕ ТАБАМИ (ленивая загрузка) ====================
+// ==================== API ВЫЗОВЫ ====================
+async function callApi(action, params) {
+    const cacheKey = action + JSON.stringify(params);
+    
+    if (appCache[cacheKey]) {
+        console.log('✅ Использую кэш для:', action);
+        return appCache[cacheKey];
+    }
+    
+    try {
+        console.log('📡 Запрос к API:', action);
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, params })
+        });
+        const data = await response.json();
+        appCache[cacheKey] = data;
+        
+        setTimeout(() => { delete appCache[cacheKey]; }, 300000);
+        return data;
+    } catch(error) {
+        console.error('API Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// ==================== УПРАВЛЕНИЕ ТАБАМИ ====================
 function switchTab(tab) {
+    console.log('🔄 Переключение на вкладку:', tab);
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('active');
     
@@ -263,7 +278,6 @@ function switchTab(tab) {
     const panelId = `tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
     document.getElementById(panelId)?.classList.add('active');
     
-    // Загружаем данные только при переключении на вкладку
     switch(tab) {
         case 'today': loadTodaySchedule(); break;
         case 'tomorrow': loadTomorrowSchedule(); break;
@@ -279,22 +293,25 @@ function updateDates() {
     const now = new Date();
     const weekdays = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
     
-    document.getElementById('todayDate').textContent = now.toLocaleDateString('ru-RU');
-    document.getElementById('todayWeekday').textContent = weekdays[now.getDay()];
+    const todayEl = document.getElementById('todayDate');
+    const todayWeekdayEl = document.getElementById('todayWeekday');
+    if (todayEl) todayEl.textContent = now.toLocaleDateString('ru-RU');
+    if (todayWeekdayEl) todayWeekdayEl.textContent = weekdays[now.getDay()];
     
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    document.getElementById('tomorrowDate').textContent = tomorrow.toLocaleDateString('ru-RU');
-    document.getElementById('tomorrowWeekday').textContent = weekdays[tomorrow.getDay()];
+    const tomorrowEl = document.getElementById('tomorrowDate');
+    const tomorrowWeekdayEl = document.getElementById('tomorrowWeekday');
+    if (tomorrowEl) tomorrowEl.textContent = tomorrow.toLocaleDateString('ru-RU');
+    if (tomorrowWeekdayEl) tomorrowWeekdayEl.textContent = weekdays[tomorrow.getDay()];
 }
-
-let scheduleCache = {};
 
 async function loadTodaySchedule() {
     const container = document.getElementById('todaySchedule');
+    if (!container) return;
+    
     const cacheKey = 'today_' + currentLobbyId;
     
-    // Показываем кэш, если есть
     if (scheduleCache[cacheKey]) {
         container.innerHTML = scheduleCache[cacheKey];
         return;
@@ -361,6 +378,8 @@ async function loadTodaySchedule() {
 
 async function loadTomorrowSchedule() {
     const container = document.getElementById('tomorrowSchedule');
+    if (!container) return;
+    
     const cacheKey = 'tomorrow_' + currentLobbyId;
     
     if (scheduleCache[cacheKey]) {
@@ -415,6 +434,8 @@ function changeWeek(delta) {
 
 async function loadWeekSchedule() {
     const container = document.getElementById('weekSchedule');
+    if (!container) return;
+    
     const cacheKey = 'week_' + currentLobbyId + '_' + currentWeekOffset;
     
     if (scheduleCache[cacheKey]) {
@@ -449,7 +470,7 @@ async function loadWeekSchedule() {
                     <div class="day-card-header">
                         <span class="day-card-title">${weekdaysFull[i]}</span>
                         <span class="day-card-date">${date.toLocaleDateString('ru-RU')}</span>
-                        ${isAdmin ? `<button class="btn btn-sm btn-outline" onclick="showToast('✏️ Редактирование в разработке')">✏️</button>` : ''}
+                        ${isAdmin ? `<button class="btn btn-sm btn-outline" onclick="window.showToast('✏️ Редактирование в разработке')">✏️</button>` : ''}
                     </div>
                     ${result && result.length > 0 ? 
                         result.map(l => `
@@ -473,10 +494,10 @@ async function loadWeekSchedule() {
 }
 
 // ==================== ДОМАШНЕЕ ЗАДАНИЕ ====================
-let homeworkCache = {};
-
 async function loadHomework() {
     const container = document.getElementById('homeworkContent');
+    if (!container) return;
+    
     const cacheKey = 'homework_' + currentLobbyId;
     
     if (homeworkCache[cacheKey]) {
@@ -494,7 +515,7 @@ async function loadHomework() {
                 <div class="empty-state">
                     <div class="icon">📝</div>
                     <h3>Нет домашнего задания</h3>
-                    ${isAdmin ? `<button class="btn btn-primary" style="margin-top:12px;" onclick="showAddHomework()">➕ Добавить ДЗ</button>` : ''}
+                    ${isAdmin ? `<button class="btn btn-primary" style="margin-top:12px;" onclick="window.showAddHomework()">➕ Добавить ДЗ</button>` : ''}
                 </div>
             `;
             homeworkCache[cacheKey] = html;
@@ -504,7 +525,7 @@ async function loadHomework() {
         
         let html = '';
         if (isAdmin) {
-            html += `<button class="btn btn-primary btn-full" style="margin-bottom:12px;" onclick="showAddHomework()">➕ Добавить ДЗ</button>`;
+            html += `<button class="btn btn-primary btn-full" style="margin-bottom:12px;" onclick="window.showAddHomework()">➕ Добавить ДЗ</button>`;
         }
         
         result.forEach(hw => {
@@ -528,12 +549,12 @@ async function loadHomework() {
                         </div>
                         <div class="homework-actions">
                             ${!isDone ? 
-                                `<button class="btn btn-success btn-sm" onclick="markHomeworkDone('${hw.id}')">✅ Отметить</button>` :
+                                `<button class="btn btn-success btn-sm" onclick="window.markHomeworkDone('${hw.id}')">✅ Отметить</button>` :
                                 `<span style="color:var(--success);font-size:13px;">✅ Вы выполнили</span>`
                             }
                             ${isAdmin ? `
-                                <button class="btn btn-warning btn-sm" onclick="showToast('✏️ Редактирование в разработке')">✏️</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteHomework('${hw.id}')">🗑️</button>
+                                <button class="btn btn-warning btn-sm" onclick="window.showToast('✏️ Редактирование в разработке')">✏️</button>
+                                <button class="btn btn-danger btn-sm" onclick="window.deleteHomework('${hw.id}')">🗑️</button>
                             ` : ''}
                         </div>
                     </div>
@@ -558,7 +579,6 @@ async function markHomeworkDone(homeworkId) {
     
     if (result.success) {
         showToast('✅ ДЗ отмечено как выполненное!');
-        // Очищаем кэш, чтобы обновить данные
         homeworkCache = {};
         loadHomework();
     } else {
@@ -569,6 +589,7 @@ async function markHomeworkDone(homeworkId) {
 function showAddHomework() {
     const modal = document.getElementById('editModal');
     const content = document.getElementById('editModalContent');
+    if (!modal || !content) return;
     
     content.innerHTML = `
         <h3 class="modal-title">📝 Добавить ДЗ</h3>
@@ -584,7 +605,7 @@ function showAddHomework() {
             <label>Срок (дата)</label>
             <input type="date" id="hwDueDate" class="form-input">
         </div>
-        <button class="btn btn-primary btn-full" onclick="addHomework()">➕ Добавить</button>
+        <button class="btn btn-primary btn-full" onclick="window.addHomework()">➕ Добавить</button>
     `;
     
     modal.classList.add('active');
@@ -644,7 +665,8 @@ function showToast(message) {
 
 // ==================== МОДАЛЬНЫЕ ОКНА ====================
 function closeModal(id) {
-    document.getElementById(id).classList.remove('active');
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('active');
 }
 
 // ==================== ЗАГРУЗКА ЧАТА И АДМИНКИ ====================
