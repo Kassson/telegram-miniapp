@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Группа 4-26СВ</title>
+    <title>Workspaces</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,19 +12,25 @@
         <div id="authPage" class="page active">
             <div class="auth-container">
                 <div class="auth-header">
-                    <div class="auth-logo">📚</div>
-                    <h1>Группа 4-26СВ</h1>
-                    <p>Управление расписанием и ДЗ</p>
+                    <div class="auth-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h1>Workspaces</h1>
+                    <p>Управление группой</p>
                 </div>
                 
                 <div class="auth-buttons">
                     <button class="btn btn-primary btn-large" onclick="showCreateGroup()">
                         <span class="btn-icon">➕</span>
-                        Создать группу
+                        Создать пространство
                     </button>
                     <button class="btn btn-outline btn-large" onclick="showJoinGroup()">
                         <span class="btn-icon">🔑</span>
-                        Присоединиться к группе
+                        Присоединиться
                     </button>
                 </div>
                 
@@ -34,48 +40,44 @@
             </div>
         </div>
 
-        <!-- МОДАЛЬНОЕ ОКНО ДЛЯ СОЗДАНИЯ ГРУППЫ -->
+        <!-- МОДАЛЬНЫЕ ОКНА -->
         <div class="modal" id="createGroupModal">
             <div class="modal-content">
                 <button class="modal-close" onclick="closeModal('createGroupModal')">✕</button>
-                <h3 class="modal-title">➕ Создать группу</h3>
+                <h3 class="modal-title">Создать пространство</h3>
                 <div class="form-group">
-                    <label>Название группы</label>
-                    <input type="text" id="groupName" placeholder="Введите название группы" class="form-input">
+                    <label>Название</label>
+                    <input type="text" id="groupName" placeholder="Введите название" class="form-input">
                 </div>
                 <button class="btn btn-primary btn-full" onclick="createGroup()">Создать</button>
             </div>
         </div>
 
-        <!-- МОДАЛЬНОЕ ОКНО ДЛЯ ПРИСОЕДИНЕНИЯ -->
         <div class="modal" id="joinGroupModal">
             <div class="modal-content">
                 <button class="modal-close" onclick="closeModal('joinGroupModal')">✕</button>
-                <h3 class="modal-title">🔑 Присоединиться к группе</h3>
+                <h3 class="modal-title">Присоединиться</h3>
                 <div class="form-group">
                     <label>Код приглашения</label>
-                    <input type="text" id="inviteCode" placeholder="Введите код приглашения" class="form-input">
+                    <input type="text" id="inviteCode" placeholder="Введите код" class="form-input">
                 </div>
                 <div class="form-group">
-                    <label>Ваше полное имя</label>
-                    <input type="text" id="userFullName" placeholder="Иванов Иван Иванович" class="form-input">
+                    <label>Ваше имя</label>
+                    <input type="text" id="userFullName" placeholder="Иванов Иван" class="form-input">
                 </div>
                 <button class="btn btn-primary btn-full" onclick="joinGroup()">Присоединиться</button>
             </div>
         </div>
 
-        <!-- МОДАЛЬНОЕ ОКНО ДЛЯ КОДА ПРИГЛАШЕНИЯ -->
         <div class="modal" id="inviteCodeModal">
             <div class="modal-content">
                 <button class="modal-close" onclick="closeModal('inviteCodeModal')">✕</button>
-                <h3 class="modal-title">📋 Код приглашения</h3>
+                <h3 class="modal-title">Код приглашения</h3>
                 <div class="invite-code-display" id="inviteCodeDisplay">ABC123</div>
-                <p style="text-align:center;color:#666;margin-top:8px;">Отправьте этот код участникам</p>
                 <button class="btn btn-primary btn-full" onclick="copyInviteCode()">📋 Скопировать</button>
             </div>
         </div>
 
-        <!-- МОДАЛЬНОЕ ОКНО ДЛЯ РЕДАКТИРОВАНИЯ -->
         <div class="modal" id="editModal">
             <div class="modal-content">
                 <button class="modal-close" onclick="closeModal('editModal')">✕</button>
@@ -85,14 +87,15 @@
 
         <!-- ГЛАВНОЕ ПРИЛОЖЕНИЕ -->
         <div id="appPage" class="page">
-            <!-- ХЕДЕР -->
             <header class="app-header">
                 <div class="header-left">
-                    <h1 id="groupNameDisplay">Группа</h1>
+                    <h1 id="groupNameDisplay">Workspaces</h1>
                     <span class="header-role" id="userRoleBadge">Участник</span>
                 </div>
                 <div class="header-right">
-                    <button class="icon-btn" onclick="showSettings()">⚙️</button>
+                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                        🌙
+                    </button>
                 </div>
             </header>
 
@@ -101,7 +104,6 @@
                 <span class="user-nickname" id="userNicknameDisplay"></span>
             </div>
 
-            <!-- ТАБЫ -->
             <div class="tabs">
                 <button class="tab active" data-tab="today" onclick="switchTab('today')">
                     <span class="tab-icon">📅</span>
@@ -122,7 +124,7 @@
                 <button class="tab" data-tab="chat" onclick="switchTab('chat')">
                     <span class="tab-icon">💬</span>
                     <span class="tab-label">Чат</span>
-                    <span class="tab-badge" id="chatBadge">0</span>
+                    <span class="tab-badge hidden" id="chatBadge">0</span>
                 </button>
                 <button class="tab admin-tab" data-tab="admin" onclick="switchTab('admin')" id="adminTab" style="display:none">
                     <span class="tab-icon">⚙️</span>
@@ -130,9 +132,7 @@
                 </button>
             </div>
 
-            <!-- КОНТЕНТ ВКЛАДОК -->
             <div class="tab-content">
-                <!-- СЕГОДНЯ -->
                 <div id="tabToday" class="tab-panel active">
                     <div class="date-header">
                         <span class="date-label" id="todayDate">Сегодня</span>
@@ -141,7 +141,6 @@
                     <div id="todaySchedule"></div>
                 </div>
 
-                <!-- ЗАВТРА -->
                 <div id="tabTomorrow" class="tab-panel">
                     <div class="date-header">
                         <span class="date-label" id="tomorrowDate">Завтра</span>
@@ -150,22 +149,19 @@
                     <div id="tomorrowSchedule"></div>
                 </div>
 
-                <!-- НЕДЕЛЯ -->
                 <div id="tabWeek" class="tab-panel">
                     <div class="week-controls">
-                        <button class="btn btn-sm btn-outline" onclick="changeWeek(-1)">◀</button>
-                        <span class="week-label" id="weekLabel">Неделя</span>
-                        <button class="btn btn-sm btn-outline" onclick="changeWeek(1)">▶</button>
+                        <button class="btn btn-sm btn-outline" onclick="changeWeek(-1)">‹</button>
+                        <span class="week-label" id="weekLabel">Текущая неделя</span>
+                        <button class="btn btn-sm btn-outline" onclick="changeWeek(1)">›</button>
                     </div>
                     <div id="weekSchedule"></div>
                 </div>
 
-                <!-- ДЗ -->
                 <div id="tabHomework" class="tab-panel">
                     <div id="homeworkContent"></div>
                 </div>
 
-                <!-- ЧАТ -->
                 <div id="tabChat" class="tab-panel">
                     <div class="chat-container">
                         <div class="chat-messages" id="chatMessages"></div>
@@ -176,7 +172,6 @@
                     </div>
                 </div>
 
-                <!-- АДМИН -->
                 <div id="tabAdmin" class="tab-panel">
                     <div id="adminContent"></div>
                 </div>
@@ -184,11 +179,10 @@
         </div>
     </div>
 
-    <!-- БИБЛИОТЕКИ -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="config.js"></script>
+    <script src="app.js"></script>
     <script src="chat.js"></script>
     <script src="admin.js"></script>
-    <script src="app.js"></script>
 </body>
 </html>
