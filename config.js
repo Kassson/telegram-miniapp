@@ -10,18 +10,13 @@ const CONFIG = {
 };
 
 // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
-let tg = null;
-try {
-    tg = window.Telegram ? window.Telegram.WebApp : null;
-} catch(e) {
-    console.warn('Telegram WebApp не доступен');
-}
-
-let currentUser = null;
-let currentLobbyId = null;
-let currentWeekOffset = 0;
-let isAdmin = false;
-let registeredUser = null;
-let appCache = {};
-let scheduleCache = {};
-let homeworkCache = {};
+// ВНИМАНИЕ: Переменные объявлены в app.js, НЕ дублируем их здесь!
+// let tg = null; // <-- УДАЛЯЕМ ЭТУ СТРОКУ!
+// let currentUser = null; // <-- УДАЛЯЕМ!
+// let currentLobbyId = null; // <-- УДАЛЯЕМ!
+// let currentWeekOffset = 0; // <-- УДАЛЯЕМ!
+// let isAdmin = false; // <-- УДАЛЯЕМ!
+// let registeredUser = null; // <-- УДАЛЯЕМ!
+// let appCache = {}; // <-- УДАЛЯЕМ!
+// let scheduleCache = {}; // <-- УДАЛЯЕМ!
+// let homeworkCache = {}; // <-- УДАЛЯЕМ!
