@@ -5,7 +5,6 @@
     --bg-card: #ffffff;
     --text-primary: #1d1d1f;
     --text-secondary: #86868b;
-    --text-inverse: #ffffff;
     --border-color: #d2d2d7;
     --shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
     --shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.12);
@@ -34,7 +33,6 @@
     --accent-light: rgba(10, 132, 255, 0.15);
 }
 
-/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
 * {
     margin: 0;
     padding: 0;
@@ -50,7 +48,6 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* ==================== СТРАНИЦЫ ==================== */
 .page {
     display: none;
     min-height: 100vh;
@@ -64,7 +61,7 @@ body {
     display: block;
 }
 
-/* ==================== ЭКРАН РЕГИСТРАЦИИ ==================== */
+/* ==================== АВТОРИЗАЦИЯ ==================== */
 .register-container {
     display: flex;
     flex-direction: column;
@@ -183,9 +180,6 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
-    text-decoration: none;
-    position: relative;
-    overflow: hidden;
 }
 
 .btn:active {
@@ -200,10 +194,6 @@ body {
 .btn-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
-}
-
-.btn-primary:active {
-    transform: scale(0.97);
 }
 
 .btn-outline {
@@ -233,6 +223,21 @@ body {
 
 .btn-icon {
     font-size: 18px;
+}
+
+.btn-success {
+    background: var(--success);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: white;
 }
 
 /* ==================== ТЕМА ==================== */
@@ -399,6 +404,15 @@ body {
 
 .tab-badge.hidden {
     display: none;
+}
+
+/* ==================== ТАБ-ПАНЕЛИ ==================== */
+.tab-panel {
+    display: none !important;
+}
+
+.tab-panel.active {
+    display: block !important;
 }
 
 /* ==================== КАРТОЧКИ ==================== */
@@ -949,68 +963,19 @@ body {
 
 /* ==================== АДАПТИВНОСТЬ ==================== */
 @media (max-width: 480px) {
-    .page {
-        padding: 12px;
-        padding-bottom: 80px;
-    }
-    
-    .register-container, .action-container {
-        min-height: 70vh;
-        padding: 12px;
-    }
-    
-    .tab {
-        padding: 8px 12px;
-        min-width: 50px;
-    }
-    
-    .tab-label {
-        font-size: 9px;
-    }
-    
-    .tab-icon {
-        font-size: 17px;
-    }
-    
-    .header-left h1 {
-        font-size: 20px;
-    }
-    
-    .lesson-time {
-        min-width: 40px;
-        font-size: 14px;
-    }
-    
-    .lesson-subject {
-        font-size: 14px;
-    }
-    
-    .member-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-    
-    .member-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
+    .page { padding: 12px; padding-bottom: 80px; }
+    .register-container, .action-container { min-height: 70vh; padding: 12px; }
+    .tab { padding: 8px 12px; min-width: 50px; }
+    .tab-label { font-size: 9px; }
+    .tab-icon { font-size: 17px; }
+    .header-left h1 { font-size: 20px; }
+    .lesson-time { min-width: 40px; font-size: 14px; }
+    .lesson-subject { font-size: 14px; }
+    .member-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .member-actions { width: 100%; justify-content: flex-end; }
 }
 
-/* ==================== SCROLLBAR ==================== */
-::-webkit-scrollbar {
-    width: 4px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
-}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
