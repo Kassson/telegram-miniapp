@@ -9,10 +9,10 @@ const CONFIG = {
     },
     
     COLORS: {
-        CURRENT: '#FF6B6B',
-        FUTURE: '#00B894',
-        PAST: '#DFE6E9',
-        REPLACED: '#FDCB6E'
+        CURRENT: '#FF3B30',
+        FUTURE: '#34C759',
+        PAST: '#8E8E93',
+        REPLACED: '#FF9500'
     }
 };
 
