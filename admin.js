@@ -1,12 +1,10 @@
 // ==================== АДМИН ПАНЕЛЬ ====================
 async function loadAdminPanel() {
     const container = document.getElementById('adminContent');
-    
     if (!container) return;
     
     try {
         const members = await callApi('getMembers', { lobbyId: currentLobbyId });
-        
         if (!members || !Array.isArray(members)) {
             container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
             return;
@@ -22,9 +20,7 @@ async function loadAdminPanel() {
             <div class="admin-section">
                 <div class="admin-section-title">👥 Участники (${members.length})</div>
                 <div class="card">
-                    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                        <button class="btn btn-sm btn-primary" onclick="showInviteCodeModal()">📋 Код приглашения</button>
-                    </div>
+                    <button class="btn btn-sm btn-primary" style="margin-bottom:12px;width:100%;" onclick="showInviteCodeModal()">📋 Код приглашения</button>
         `;
         
         members.forEach(member => {
@@ -45,29 +41,18 @@ async function loadAdminPanel() {
                     </div>
                     ${!isSelf && canManage ? `
                         <div class="member-actions">
-                            <button class="btn btn-sm ${member.isBlocked ? 'btn-success' : 'btn-danger'}" 
-                                    onclick="toggleUserBlock('${member.userId}')">
+                            <button class="btn btn-sm ${member.isBlocked ? 'btn-success' : 'btn-danger'}" onclick="toggleUserBlock('${member.userId}')">
                                 ${member.isBlocked ? '🔓' : '🔒'}
                             </button>
-                            <button class="btn btn-sm btn-warning" onclick="showNicknameModal('${member.userId}')">
-                                ✏️
-                            </button>
-                            ${currentUser?.role === 'super_admin' ? `
-                                <button class="btn btn-sm btn-danger" onclick="kickUser('${member.userId}')">
-                                    🚫
-                                </button>
-                            ` : ''}
+                            <button class="btn btn-sm btn-warning" onclick="showNicknameModal('${member.userId}')">✏️</button>
+                            ${currentUser?.role === 'super_admin' ? `<button class="btn btn-sm btn-danger" onclick="kickUser('${member.userId}')">🚫</button>` : ''}
                         </div>
                     ` : ''}
                 </div>
             `;
         });
         
-        html += `
-                </div>
-            </div>
-        `;
-        
+        html += `</div></div>`;
         container.innerHTML = html;
         
     } catch(error) {
@@ -81,24 +66,17 @@ async function toggleUserBlock(userId) {
         userId: userId,
         adminId: currentUser?.userId
     });
-    
     if (result.success) {
         showToast(result.isBlocked ? '🔒 Пользователь заблокирован' : '🔓 Пользователь разблокирован');
         loadAdminPanel();
     } else {
-        showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        showToast('❌ Ошибка');
     }
-}
-
-async function kickUser(userId) {
-    if (!confirm('Вы уверены, что хотите исключить пользователя?')) return;
-    showToast('🚫 Функция в разработке');
 }
 
 function showNicknameModal(userId) {
     const modal = document.getElementById('editModal');
     const content = document.getElementById('editModalContent');
-    
     content.innerHTML = `
         <h3 class="modal-title">✏️ Назначить никнейм</h3>
         <div class="form-group">
@@ -107,17 +85,12 @@ function showNicknameModal(userId) {
         </div>
         <button class="btn btn-primary btn-full" onclick="setNickname('${userId}')">💾 Сохранить</button>
     `;
-    
     modal.classList.add('active');
 }
 
 async function setNickname(userId) {
     const nickname = document.getElementById('nicknameInput').value.trim();
-    
-    if (!nickname) {
-        showToast('Введите никнейм');
-        return;
-    }
+    if (!nickname) { showToast('Введите никнейм'); return; }
     
     const result = await callApi('setNickname', {
         lobbyId: currentLobbyId,
@@ -135,16 +108,20 @@ async function setNickname(userId) {
             document.getElementById('userNicknameDisplay').textContent = nickname;
         }
     } else {
-        showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        showToast('❌ Ошибка');
     }
 }
 
 function showInviteCodeModal() {
-    // Получаем текущий код приглашения
     callApi('getInviteCode', { lobbyId: currentLobbyId }).then(result => {
         if (result && result.inviteCode) {
             document.getElementById('inviteCodeDisplay').textContent = result.inviteCode;
             document.getElementById('inviteCodeModal').classList.add('active');
         }
     });
+}
+
+function kickUser(userId) {
+    if (!confirm('Вы уверены?')) return;
+    showToast('🚫 Функция в разработке');
 }
