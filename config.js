@@ -1,6 +1,8 @@
 // ==================== КОНФИГУРАЦИЯ ====================
 const CONFIG = {
-    API_URL: 'https://corsproxy.io/?' + encodeURIComponent('https://script.google.com/macros/s/AKfycbx3W6c4e6AEzwVk7Ek8C7vqPJ0DfPsirDvAQ7D4JMc4KomULqz9Cs2youftBwr1F_Uw/exec'),
+    // ИСПОЛЬЗУЕМ ПРОКСИ ДЛЯ ОБХОДА CORS
+    // Прокси получает данные с вашего скрипта и возвращает их без CORS блокировки
+    API_URL: 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://script.google.com/macros/s/AKfycbx3W6c4e6AEzwVk7Ek8C7vqPJ0DfPsirDvAQ7D4JMc4KomULqz9Cs2youftBwr1F_Uw/exec'),
     
     NOTIFICATIONS: {
         MORNING: '07:30',
@@ -10,12 +12,11 @@ const CONFIG = {
 };
 
 // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
-// Проверяем, что Telegram WebApp доступен
 let tg = null;
 try {
     tg = window.Telegram ? window.Telegram.WebApp : null;
 } catch(e) {
-    console.warn('Telegram WebApp не доступен, используется эмуляция');
+    console.warn('Telegram WebApp не доступен');
 }
 
 let currentUser = null;
