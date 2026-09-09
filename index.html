@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -8,11 +8,11 @@
 </head>
 <body>
     <div id="app">
-        <!-- СТРАНИЦА ВХОДА -->
-        <div id="authPage" class="page active">
-            <div class="auth-container">
-                <div class="auth-header">
-                    <div class="auth-icon">
+        <!-- ==================== ЭКРАН РЕГИСТРАЦИИ ==================== -->
+        <div id="registerPage" class="page active">
+            <div class="register-container">
+                <div class="register-header">
+                    <div class="register-icon">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                             <path d="M2 17l10 5 10-5"/>
@@ -20,10 +20,46 @@
                         </svg>
                     </div>
                     <h1>Workspaces</h1>
-                    <p>Управление группой</p>
+                    <p>Введите ваши данные для входа</p>
                 </div>
-                
-                <div class="auth-buttons">
+
+                <div class="register-form">
+                    <div class="form-group">
+                        <label>Имя</label>
+                        <input type="text" id="regFirstName" class="form-input" placeholder="Иван" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Фамилия</label>
+                        <input type="text" id="regLastName" class="form-input" placeholder="Иванов" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Telegram Nickname</label>
+                        <input type="text" id="regNickname" class="form-input" placeholder="@username" value="">
+                    </div>
+                    <button class="btn btn-primary btn-large" onclick="registerUser()">
+                        Продолжить →
+                    </button>
+                </div>
+
+                <div class="register-footer">
+                    <button class="theme-toggle-small" onclick="toggleTheme()" id="themeToggleReg">
+                        🌙
+                    </button>
+                    <span style="color: var(--text-secondary); font-size: 13px;">Сменить тему</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ЭКРАН ВЫБОРА ДЕЙСТВИЯ ==================== -->
+        <div id="actionPage" class="page">
+            <div class="action-container">
+                <div class="action-header">
+                    <div class="user-avatar" id="userAvatar">👤</div>
+                    <h2 id="userDisplayName">Иван Иванов</h2>
+                    <p class="user-tg" id="userDisplayNickname">@username</p>
+                </div>
+
+                <div class="action-buttons">
                     <button class="btn btn-primary btn-large" onclick="showCreateGroup()">
                         <span class="btn-icon">➕</span>
                         Создать пространство
@@ -33,14 +69,17 @@
                         Присоединиться
                     </button>
                 </div>
-                
-                <div class="auth-footer">
-                    <p>Войдите в Telegram, чтобы продолжить</p>
+
+                <div class="action-footer">
+                    <button class="theme-toggle-small" onclick="toggleTheme()" id="themeToggleAction">
+                        🌙
+                    </button>
+                    <span style="color: var(--text-secondary); font-size: 13px;">Сменить тему</span>
                 </div>
             </div>
         </div>
 
-        <!-- МОДАЛЬНЫЕ ОКНА -->
+        <!-- ==================== МОДАЛЬНЫЕ ОКНА ==================== -->
         <div class="modal" id="createGroupModal">
             <div class="modal-content">
                 <button class="modal-close" onclick="closeModal('createGroupModal')">✕</button>
@@ -60,10 +99,6 @@
                 <div class="form-group">
                     <label>Код приглашения</label>
                     <input type="text" id="inviteCode" placeholder="Введите код" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label>Ваше имя</label>
-                    <input type="text" id="userFullName" placeholder="Иванов Иван" class="form-input">
                 </div>
                 <button class="btn btn-primary btn-full" onclick="joinGroup()">Присоединиться</button>
             </div>
@@ -85,7 +120,7 @@
             </div>
         </div>
 
-        <!-- ГЛАВНОЕ ПРИЛОЖЕНИЕ -->
+        <!-- ==================== ГЛАВНОЕ ПРИЛОЖЕНИЕ ==================== -->
         <div id="appPage" class="page">
             <header class="app-header">
                 <div class="header-left">
@@ -93,7 +128,7 @@
                     <span class="header-role" id="userRoleBadge">Участник</span>
                 </div>
                 <div class="header-right">
-                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleApp">
                         🌙
                     </button>
                 </div>
