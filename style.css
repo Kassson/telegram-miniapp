@@ -763,6 +763,105 @@ body {
     opacity: 0.4;
 }
 
+/* ==================== РЕДАКТОР РАСПИСАНИЯ ==================== */
+.schedule-editor-container {
+    padding: 4px 0;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.schedule-editor-controls {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.schedule-editor-list {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border-color);
+}
+
+.schedule-editor-list h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.schedule-editor-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.schedule-editor-item:last-child {
+    border-bottom: none;
+}
+
+.schedule-editor-item .lesson-info {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.schedule-editor-item .lesson-day {
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 40px;
+}
+
+.schedule-editor-item .lesson-time {
+    color: var(--text-secondary);
+    min-width: 50px;
+}
+
+.schedule-editor-item .lesson-subject {
+    font-weight: 500;
+}
+
+.schedule-editor-item .lesson-cabinet {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.schedule-editor-item .delete-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: var(--transition);
+}
+
+.schedule-editor-item .delete-btn:hover {
+    background: rgba(255, 59, 48, 0.1);
+}
+
+.schedule-editor-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+}
+
+.schedule-editor-empty .icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
 /* ==================== МОДАЛЬНЫЕ ОКНА ==================== */
 .modal {
     display: none;
@@ -862,6 +961,11 @@ body {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 4px var(--accent-light);
+}
+
+.form-input option {
+    color: var(--text-primary);
+    background: var(--bg-card);
 }
 
 /* ==================== НЕДЕЛЯ ==================== */
