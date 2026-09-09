@@ -790,3 +790,52 @@ async function loadAdminPanel() {
         container.innerHTML = '<div class="empty-state"><div class="icon">⚙️</div><h3>Загрузка админ-панели...</h3></div>';
     }
 }
+
+// ==================== JSONP ДЛЯ ОБХОДА CORS ====================
+function callApiJsonp(action, params) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'jsonp_callback_' + Date.now();
+        const url = 'https://script.google.com/macros/s/AKfycbx3W6c4e6AEzwVk7Ek8C7vqPJ0DfPsirDvAQ7D4JMc4KomULqz9Cs2youftBwr1F_Uw/exec' + 
+            '?action=' + action + 
+            '&params=' + encodeURIComponent(JSON.stringify(params)) + 
+            '&callback=' + callbackName;
+        
+        console.log('📡 JSONP запрос:', url);
+        
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            resolve(data);
+        };
+        
+        const script = document.createElement('script');
+        script.src = url;
+        script.onerror = function() {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            reject(new Error('JSONP request failed'));
+        };
+        
+        document.body.appendChild(script);
+    });
+}
+
+// Переопределяем callApi для использования JSONP
+const originalCallApi = callApi;
+callApi = async function(action, params) {
+    const cacheKey = action + JSON.stringify(params);
+    
+    if (appCache[cacheKey]) {
+        return appCache[cacheKey];
+    }
+    
+    try {
+        const data = await callApiJsonp(action, params);
+        appCache[cacheKey] = data;
+        setTimeout(() => { delete appCache[cacheKey]; }, 300000);
+        return data;
+    } catch(error) {
+        console.error('❌ JSONP Error:', error);
+        return { success: false, error: error.message };
+    }
+};
