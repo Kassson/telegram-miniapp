@@ -13,7 +13,6 @@ let homeworkCache = {};
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ app.js загружен!');
     
-    // Инициализация Telegram WebApp
     try {
         tg = window.Telegram ? window.Telegram.WebApp : null;
         if (tg) {
@@ -34,7 +33,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     loadTheme();
     
-    // Проверяем пользователя, если есть tg
     if (tg) {
         checkUserFromTelegram();
     }
@@ -49,6 +47,8 @@ async function checkUserFromTelegram() {
     
     try {
         const result = await callApi('getUser', { tgId: String(tgUser.id) });
+        console.log('📡 Результат getUser:', result);
+        
         if (result && result.userId) {
             currentUser = result;
             currentLobbyId = result.lobbyId;
@@ -111,20 +111,14 @@ function registerUser() {
         nickname: nickname || '@user'
     };
     
-    // Переключаем страницы
     const registerPage = document.getElementById('registerPage');
     const actionPage = document.getElementById('actionPage');
     if (registerPage) registerPage.classList.remove('active');
     if (actionPage) actionPage.classList.add('active');
     
-    // Обновляем отображение
-    const displayName = document.getElementById('userDisplayName');
-    const displayNickname = document.getElementById('userDisplayNickname');
-    const userAvatar = document.getElementById('userAvatar');
-    
-    if (displayName) displayName.textContent = firstName + ' ' + lastName;
-    if (displayNickname) displayNickname.textContent = nickname || '@user';
-    if (userAvatar) userAvatar.textContent = firstName.charAt(0).toUpperCase();
+    document.getElementById('userDisplayName').textContent = firstName + ' ' + lastName;
+    document.getElementById('userDisplayNickname').textContent = nickname || '@user';
+    document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
     
     console.log('✅ Переход на экран выбора действия');
 }
@@ -158,6 +152,8 @@ async function createGroup() {
             lobbyName: groupName
         });
         
+        console.log('📡 Результат createLobby:', result);
+        
         if (result && result.lobbyId) {
             closeModal('createGroupModal');
             
@@ -170,6 +166,8 @@ async function createGroup() {
                 fullName: fullName,
                 inviteCode: result.inviteCode
             });
+            
+            console.log('📡 Результат joinLobby:', joinResult);
             
             if (joinResult.success) {
                 currentLobbyId = result.lobbyId;
@@ -216,6 +214,8 @@ async function joinGroup() {
             inviteCode: inviteCode
         });
         
+        console.log('📡 Результат joinLobby:', result);
+        
         if (result.success) {
             closeModal('joinGroupModal');
             currentLobbyId = result.lobbyId;
@@ -258,26 +258,19 @@ function copyInviteCode() {
 function showApp() {
     console.log('✅ showApp вызвана');
     
-    const actionPage = document.getElementById('actionPage');
-    const appPage = document.getElementById('appPage');
-    if (actionPage) actionPage.classList.remove('active');
-    if (appPage) appPage.classList.add('active');
+    document.getElementById('actionPage').classList.remove('active');
+    document.getElementById('appPage').classList.add('active');
     
-    const groupNameDisplay = document.getElementById('groupNameDisplay');
-    const userNameDisplay = document.getElementById('userNameDisplay');
-    const userNicknameDisplay = document.getElementById('userNicknameDisplay');
-    const adminTab = document.getElementById('adminTab');
-    const userRoleBadge = document.getElementById('userRoleBadge');
-    
-    if (groupNameDisplay) groupNameDisplay.textContent = 'Workspaces';
-    if (userNameDisplay) userNameDisplay.textContent = currentUser?.fullName || 'Пользователь';
-    if (userNicknameDisplay) userNicknameDisplay.textContent = currentUser?.nickname || '';
+    document.getElementById('groupNameDisplay').textContent = 'Workspaces';
+    document.getElementById('userNameDisplay').textContent = currentUser?.fullName || 'Пользователь';
+    document.getElementById('userNicknameDisplay').textContent = currentUser?.nickname || '';
     
     if (isAdmin) {
-        if (adminTab) adminTab.style.display = 'flex';
-        if (userRoleBadge) {
-            userRoleBadge.textContent = 'Админ';
-            userRoleBadge.classList.add('admin');
+        document.getElementById('adminTab').style.display = 'flex';
+        const badge = document.getElementById('userRoleBadge');
+        if (badge) {
+            badge.textContent = 'Админ';
+            badge.classList.add('admin');
         }
     }
     
@@ -292,27 +285,32 @@ function showApp() {
     }
 }
 
-// ==================== API ВЫЗОВЫ С ПОДДЕРЖКОЙ CORS ====================
+// ==================== API ВЫЗОВЫ ЧЕРЕЗ ПРОКСИ ====================
 async function callApi(action, params) {
     const cacheKey = action + JSON.stringify(params);
     
-    // Проверка кэша
     if (appCache[cacheKey]) {
         console.log('✅ Использую кэш для:', action);
         return appCache[cacheKey];
     }
     
     try {
-        console.log('📡 Запрос к API:', action);
+        console.log('📡 Запрос к API через прокси:', action);
         
-        const response = await fetch(CONFIG.API_URL, {
+        // Строим URL с параметрами для прокси
+        const url = CONFIG.API_URL;
+        const body = JSON.stringify({ action, params });
+        
+        console.log('📡 URL:', url);
+        console.log('📡 Body:', body);
+        
+        const response = await fetch(url, {
             method: 'POST',
-            mode: 'cors',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ action, params })
+            body: body
         });
         
         if (!response.ok) {
@@ -322,7 +320,6 @@ async function callApi(action, params) {
         const data = await response.json();
         console.log('✅ Ответ от API:', data);
         
-        // Сохраняем в кэш на 5 минут
         appCache[cacheKey] = data;
         setTimeout(() => { delete appCache[cacheKey]; }, 300000);
         
