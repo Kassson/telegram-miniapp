@@ -131,6 +131,9 @@
             <div class="header-user">
                 <span class="user-name" id="userNameDisplay">Иванов Иван</span>
                 <span class="user-nickname" id="userNicknameDisplay"></span>
+                <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">
+                    Код: <span id="inviteCodeDisplayHeader" style="font-weight:600;color:var(--accent);"></span>
+                </span>
             </div>
 
             <div class="tabs">
@@ -149,6 +152,11 @@
                 <button class="tab" data-tab="homework" onclick="switchTab('homework')">
                     <span class="tab-icon">📝</span>
                     <span class="tab-label">ДЗ</span>
+                </button>
+                <button class="tab" data-tab="members" onclick="switchTab('members')">
+                    <span class="tab-icon">👥</span>
+                    <span class="tab-label">Участники</span>
+                    <span class="tab-badge hidden" id="membersBadge">0</span>
                 </button>
                 <button class="tab" data-tab="chat" onclick="switchTab('chat')">
                     <span class="tab-icon">💬</span>
@@ -191,6 +199,10 @@
                     <div id="homeworkContent"></div>
                 </div>
 
+                <div id="tabMembers" class="tab-panel">
+                    <div id="membersContent"></div>
+                </div>
+
                 <div id="tabChat" class="tab-panel">
                     <div class="chat-container">
                         <div class="chat-messages" id="chatMessages"></div>
@@ -208,7 +220,6 @@
         </div>
     </div>
 
-    <!-- СКРИПТЫ -->
     <script>
         window.Telegram = window.Telegram || {
             WebApp: {
