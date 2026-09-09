@@ -1,22 +1,43 @@
+// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+let tg = null;
+let currentUser = null;
+let currentLobbyId = null;
+let currentWeekOffset = 0;
+let isAdmin = false;
+let registeredUser = null;
+let appCache = {};
+let scheduleCache = {};
+let homeworkCache = {};
+
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ app.js загружен!');
     
     // Инициализация Telegram WebApp
-    if (tg) {
-        tg.expand();
-        const tgUser = tg.initDataUnsafe?.user;
-        if (tgUser) {
-            console.log('👤 Пользователь Telegram:', tgUser);
-            // Заполняем поля регистрации
-            document.getElementById('regFirstName').value = tgUser.first_name || '';
-            document.getElementById('regLastName').value = tgUser.last_name || '';
-            document.getElementById('regNickname').value = tgUser.username ? '@' + tgUser.username : '';
+    try {
+        tg = window.Telegram ? window.Telegram.WebApp : null;
+        if (tg) {
+            tg.expand();
+            const tgUser = tg.initDataUnsafe?.user;
+            if (tgUser) {
+                console.log('👤 Пользователь Telegram:', tgUser);
+                document.getElementById('regFirstName').value = tgUser.first_name || '';
+                document.getElementById('regLastName').value = tgUser.last_name || '';
+                document.getElementById('regNickname').value = tgUser.username ? '@' + tgUser.username : '';
+            }
+        } else {
+            console.warn('⚠️ Telegram WebApp не доступен, используется эмуляция');
         }
+    } catch(e) {
+        console.warn('⚠️ Ошибка инициализации Telegram:', e);
     }
     
     loadTheme();
-    checkUserFromTelegram();
+    
+    // Проверяем пользователя, если есть tg
+    if (tg) {
+        checkUserFromTelegram();
+    }
 });
 
 // ==================== ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ ====================
@@ -65,7 +86,7 @@ function loadTheme() {
 function updateThemeButtons(theme) {
     const icon = theme === 'dark' ? '☀️' : '🌙';
     document.querySelectorAll('.theme-toggle, .theme-toggle-small').forEach(el => {
-        el.textContent = icon;
+        if (el) el.textContent = icon;
     });
 }
 
@@ -91,13 +112,19 @@ function registerUser() {
     };
     
     // Переключаем страницы
-    document.getElementById('registerPage').classList.remove('active');
-    document.getElementById('actionPage').classList.add('active');
+    const registerPage = document.getElementById('registerPage');
+    const actionPage = document.getElementById('actionPage');
+    if (registerPage) registerPage.classList.remove('active');
+    if (actionPage) actionPage.classList.add('active');
     
     // Обновляем отображение
-    document.getElementById('userDisplayName').textContent = firstName + ' ' + lastName;
-    document.getElementById('userDisplayNickname').textContent = nickname || '@user';
-    document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
+    const displayName = document.getElementById('userDisplayName');
+    const displayNickname = document.getElementById('userDisplayNickname');
+    const userAvatar = document.getElementById('userAvatar');
+    
+    if (displayName) displayName.textContent = firstName + ' ' + lastName;
+    if (displayNickname) displayNickname.textContent = nickname || '@user';
+    if (userAvatar) userAvatar.textContent = firstName.charAt(0).toUpperCase();
     
     console.log('✅ Переход на экран выбора действия');
 }
@@ -105,12 +132,14 @@ function registerUser() {
 // ==================== СОЗДАНИЕ / ПРИСОЕДИНЕНИЕ ====================
 function showCreateGroup() {
     console.log('✅ showCreateGroup вызвана');
-    document.getElementById('createGroupModal').classList.add('active');
+    const modal = document.getElementById('createGroupModal');
+    if (modal) modal.classList.add('active');
 }
 
 function showJoinGroup() {
     console.log('✅ showJoinGroup вызвана');
-    document.getElementById('joinGroupModal').classList.add('active');
+    const modal = document.getElementById('joinGroupModal');
+    if (modal) modal.classList.add('active');
 }
 
 async function createGroup() {
@@ -154,9 +183,14 @@ async function createGroup() {
                 showInviteCode(result.inviteCode);
                 showApp();
                 showToast('✅ Пространство создано!');
+            } else {
+                showToast('❌ ' + (joinResult.error || 'Ошибка присоединения'));
             }
+        } else {
+            showToast('❌ ' + (result.error || 'Ошибка создания'));
         }
     } catch(error) {
+        console.error('Create group error:', error);
         showToast('❌ Ошибка: ' + error.message);
     }
 }
@@ -198,36 +232,53 @@ async function joinGroup() {
             showToast('❌ ' + (result.error || 'Ошибка присоединения'));
         }
     } catch(error) {
+        console.error('Join group error:', error);
         showToast('❌ Ошибка: ' + error.message);
     }
 }
 
 function showInviteCode(code) {
-    document.getElementById('inviteCodeDisplay').textContent = code;
-    document.getElementById('inviteCodeModal').classList.add('active');
+    const display = document.getElementById('inviteCodeDisplay');
+    const modal = document.getElementById('inviteCodeModal');
+    if (display) display.textContent = code;
+    if (modal) modal.classList.add('active');
 }
 
 function copyInviteCode() {
-    const code = document.getElementById('inviteCodeDisplay').textContent;
-    navigator.clipboard.writeText(code).then(() => {
+    const code = document.getElementById('inviteCodeDisplay');
+    if (!code) return;
+    navigator.clipboard.writeText(code.textContent).then(() => {
         showToast('📋 Код скопирован!');
+    }).catch(() => {
+        showToast('📋 Код: ' + code.textContent);
     });
 }
 
 // ==================== ГЛАВНОЕ ПРИЛОЖЕНИЕ ====================
 function showApp() {
     console.log('✅ showApp вызвана');
-    document.getElementById('actionPage').classList.remove('active');
-    document.getElementById('appPage').classList.add('active');
     
-    document.getElementById('groupNameDisplay').textContent = 'Workspaces';
-    document.getElementById('userNameDisplay').textContent = currentUser?.fullName || 'Пользователь';
-    document.getElementById('userNicknameDisplay').textContent = currentUser?.nickname || '';
+    const actionPage = document.getElementById('actionPage');
+    const appPage = document.getElementById('appPage');
+    if (actionPage) actionPage.classList.remove('active');
+    if (appPage) appPage.classList.add('active');
+    
+    const groupNameDisplay = document.getElementById('groupNameDisplay');
+    const userNameDisplay = document.getElementById('userNameDisplay');
+    const userNicknameDisplay = document.getElementById('userNicknameDisplay');
+    const adminTab = document.getElementById('adminTab');
+    const userRoleBadge = document.getElementById('userRoleBadge');
+    
+    if (groupNameDisplay) groupNameDisplay.textContent = 'Workspaces';
+    if (userNameDisplay) userNameDisplay.textContent = currentUser?.fullName || 'Пользователь';
+    if (userNicknameDisplay) userNicknameDisplay.textContent = currentUser?.nickname || '';
     
     if (isAdmin) {
-        document.getElementById('adminTab').style.display = 'flex';
-        document.getElementById('userRoleBadge').textContent = 'Админ';
-        document.getElementById('userRoleBadge').classList.add('admin');
+        if (adminTab) adminTab.style.display = 'flex';
+        if (userRoleBadge) {
+            userRoleBadge.textContent = 'Админ';
+            userRoleBadge.classList.add('admin');
+        }
     }
     
     updateDates();
@@ -241,10 +292,11 @@ function showApp() {
     }
 }
 
-// ==================== API ВЫЗОВЫ ====================
+// ==================== API ВЫЗОВЫ С ПОДДЕРЖКОЙ CORS ====================
 async function callApi(action, params) {
     const cacheKey = action + JSON.stringify(params);
     
+    // Проверка кэша
     if (appCache[cacheKey]) {
         console.log('✅ Использую кэш для:', action);
         return appCache[cacheKey];
@@ -252,18 +304,32 @@ async function callApi(action, params) {
     
     try {
         console.log('📡 Запрос к API:', action);
+        
         const response = await fetch(CONFIG.API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: JSON.stringify({ action, params })
         });
-        const data = await response.json();
-        appCache[cacheKey] = data;
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Ответ от API:', data);
+        
+        // Сохраняем в кэш на 5 минут
+        appCache[cacheKey] = data;
         setTimeout(() => { delete appCache[cacheKey]; }, 300000);
+        
         return data;
+        
     } catch(error) {
-        console.error('API Error:', error);
+        console.error('❌ API Error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -271,12 +337,15 @@ async function callApi(action, params) {
 // ==================== УПРАВЛЕНИЕ ТАБАМИ ====================
 function switchTab(tab) {
     console.log('🔄 Переключение на вкладку:', tab);
+    
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('active');
+    const activeTab = document.querySelector(`.tab[data-tab="${tab}"]`);
+    if (activeTab) activeTab.classList.add('active');
     
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     const panelId = `tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
-    document.getElementById(panelId)?.classList.add('active');
+    const panel = document.getElementById(panelId);
+    if (panel) panel.classList.add('active');
     
     switch(tab) {
         case 'today': loadTodaySchedule(); break;
@@ -309,6 +378,11 @@ function updateDates() {
 async function loadTodaySchedule() {
     const container = document.getElementById('todaySchedule');
     if (!container) return;
+    
+    if (!currentLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет данных</h3></div>';
+        return;
+    }
     
     const cacheKey = 'today_' + currentLobbyId;
     
@@ -372,6 +446,7 @@ async function loadTodaySchedule() {
         container.innerHTML = html;
         
     } catch(error) {
+        console.error('Load today schedule error:', error);
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
     }
 }
@@ -379,6 +454,11 @@ async function loadTodaySchedule() {
 async function loadTomorrowSchedule() {
     const container = document.getElementById('tomorrowSchedule');
     if (!container) return;
+    
+    if (!currentLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет данных</h3></div>';
+        return;
+    }
     
     const cacheKey = 'tomorrow_' + currentLobbyId;
     
@@ -419,22 +499,31 @@ async function loadTomorrowSchedule() {
         container.innerHTML = html;
         
     } catch(error) {
+        console.error('Load tomorrow schedule error:', error);
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
     }
 }
 
 function changeWeek(delta) {
     currentWeekOffset += delta;
-    document.getElementById('weekLabel').textContent = 
-        currentWeekOffset === 0 ? 'Текущая неделя' :
-        currentWeekOffset > 0 ? `+${currentWeekOffset} неделя` :
-        `${currentWeekOffset} неделя`;
+    const weekLabel = document.getElementById('weekLabel');
+    if (weekLabel) {
+        weekLabel.textContent = 
+            currentWeekOffset === 0 ? 'Текущая неделя' :
+            currentWeekOffset > 0 ? `+${currentWeekOffset} неделя` :
+            `${currentWeekOffset} неделя`;
+    }
     loadWeekSchedule();
 }
 
 async function loadWeekSchedule() {
     const container = document.getElementById('weekSchedule');
     if (!container) return;
+    
+    if (!currentLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет данных</h3></div>';
+        return;
+    }
     
     const cacheKey = 'week_' + currentLobbyId + '_' + currentWeekOffset;
     
@@ -489,6 +578,7 @@ async function loadWeekSchedule() {
         container.innerHTML = html;
         
     } catch(error) {
+        console.error('Load week schedule error:', error);
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
     }
 }
@@ -497,6 +587,11 @@ async function loadWeekSchedule() {
 async function loadHomework() {
     const container = document.getElementById('homeworkContent');
     if (!container) return;
+    
+    if (!currentLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><h3>Нет данных</h3></div>';
+        return;
+    }
     
     const cacheKey = 'homework_' + currentLobbyId;
     
@@ -566,11 +661,17 @@ async function loadHomework() {
         container.innerHTML = html;
         
     } catch(error) {
+        console.error('Load homework error:', error);
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
     }
 }
 
 async function markHomeworkDone(homeworkId) {
+    if (!currentLobbyId || !currentUser) {
+        showToast('❌ Ошибка: нет данных пользователя');
+        return;
+    }
+    
     const result = await callApi('markHomeworkDone', {
         lobbyId: currentLobbyId,
         homeworkId: homeworkId,
@@ -618,6 +719,11 @@ async function addHomework() {
     
     if (!subject || !description) {
         showToast('Заполните все поля');
+        return;
+    }
+    
+    if (!currentLobbyId || !currentUser) {
+        showToast('❌ Ошибка: нет данных пользователя');
         return;
     }
     
