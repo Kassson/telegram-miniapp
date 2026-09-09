@@ -8,3 +8,21 @@ const CONFIG = {
         LESSON_REMIND: 10,
     }
 };
+
+// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+// Проверяем, что Telegram WebApp доступен
+let tg = null;
+try {
+    tg = window.Telegram ? window.Telegram.WebApp : null;
+} catch(e) {
+    console.warn('Telegram WebApp не доступен, используется эмуляция');
+}
+
+let currentUser = null;
+let currentLobbyId = null;
+let currentWeekOffset = 0;
+let isAdmin = false;
+let registeredUser = null;
+let appCache = {};
+let scheduleCache = {};
+let homeworkCache = {};
