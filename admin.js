@@ -20,7 +20,7 @@ async function loadAdminPanel() {
             <div class="admin-section">
                 <div class="admin-section-title">👥 Участники (${members.length})</div>
                 <div class="card">
-                    <button class="btn btn-sm btn-primary" style="margin-bottom:12px;width:100%;" onclick="showInviteCodeModal()">📋 Код приглашения</button>
+                    <button class="btn btn-sm btn-primary" style="margin-bottom:12px;width:100%;" onclick="window.showInviteCodeModal()">📋 Код приглашения</button>
         `;
         
         members.forEach(member => {
@@ -41,11 +41,11 @@ async function loadAdminPanel() {
                     </div>
                     ${!isSelf && canManage ? `
                         <div class="member-actions">
-                            <button class="btn btn-sm ${member.isBlocked ? 'btn-success' : 'btn-danger'}" onclick="toggleUserBlock('${member.userId}')">
+                            <button class="btn btn-sm ${member.isBlocked ? 'btn-success' : 'btn-danger'}" onclick="window.toggleUserBlock('${member.userId}')">
                                 ${member.isBlocked ? '🔓' : '🔒'}
                             </button>
-                            <button class="btn btn-sm btn-warning" onclick="showNicknameModal('${member.userId}')">✏️</button>
-                            ${currentUser?.role === 'super_admin' ? `<button class="btn btn-sm btn-danger" onclick="kickUser('${member.userId}')">🚫</button>` : ''}
+                            <button class="btn btn-sm btn-warning" onclick="window.showNicknameModal('${member.userId}')">✏️</button>
+                            ${currentUser?.role === 'super_admin' ? `<button class="btn btn-sm btn-danger" onclick="window.kickUser('${member.userId}')">🚫</button>` : ''}
                         </div>
                     ` : ''}
                 </div>
@@ -77,13 +77,15 @@ async function toggleUserBlock(userId) {
 function showNicknameModal(userId) {
     const modal = document.getElementById('editModal');
     const content = document.getElementById('editModalContent');
+    if (!modal || !content) return;
+    
     content.innerHTML = `
         <h3 class="modal-title">✏️ Назначить никнейм</h3>
         <div class="form-group">
             <label>Никнейм</label>
             <input type="text" id="nicknameInput" class="form-input" placeholder="Например: Староста">
         </div>
-        <button class="btn btn-primary btn-full" onclick="setNickname('${userId}')">💾 Сохранить</button>
+        <button class="btn btn-primary btn-full" onclick="window.setNickname('${userId}')">💾 Сохранить</button>
     `;
     modal.classList.add('active');
 }
