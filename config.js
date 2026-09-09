@@ -6,19 +6,5 @@ const CONFIG = {
         MORNING: '07:30',
         EVENING: '20:30',
         LESSON_REMIND: 10,
-    },
-    
-    COLORS: {
-        CURRENT: '#FF3B30',
-        FUTURE: '#34C759',
-        PAST: '#8E8E93',
-        REPLACED: '#FF9500'
     }
 };
-
-let tg = window.Telegram.WebApp;
-let currentUser = null;
-let currentLobbyId = null;
-let currentWeekOffset = 0;
-let chatMessages = [];
-let isAdmin = false;
