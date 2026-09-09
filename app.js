@@ -1,15 +1,37 @@
+// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+let tg = window.Telegram.WebApp;
+let currentUser = null;
+let currentLobbyId = null;
+let currentWeekOffset = 0;
+let isAdmin = false;
+let registeredUser = null;
+
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', function() {
     tg.expand();
     
+    loadTheme();
+    checkTelegramUser();
+});
+
+// ==================== ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ TELEGRAM ====================
+function checkTelegramUser() {
     const tgUser = tg.initDataUnsafe?.user;
+    
     if (tgUser) {
+        // Заполняем поля регистрации данными из Telegram
+        const firstName = tgUser.first_name || '';
+        const lastName = tgUser.last_name || '';
+        const username = tgUser.username ? '@' + tgUser.username : '';
+        
+        document.getElementById('regFirstName').value = firstName;
+        document.getElementById('regLastName').value = lastName;
+        document.getElementById('regNickname').value = username;
+        
+        // Проверяем, зарегистрирован ли пользователь
         checkUser(tgUser.id);
     }
-    
-    updateDates();
-    loadTheme();
-});
+}
 
 // ==================== ТЕМА ====================
 function toggleTheme() {
@@ -18,16 +40,47 @@ function toggleTheme() {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
-    
-    const toggle = document.getElementById('themeToggle');
-    toggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    updateThemeButtons(newTheme);
 }
 
 function loadTheme() {
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    const toggle = document.getElementById('themeToggle');
-    toggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+    updateThemeButtons(savedTheme);
+}
+
+function updateThemeButtons(theme) {
+    const icon = theme === 'dark' ? '☀️' : '🌙';
+    document.querySelectorAll('.theme-toggle, .theme-toggle-small').forEach(el => {
+        el.textContent = icon;
+    });
+}
+
+// ==================== РЕГИСТРАЦИЯ ====================
+function registerUser() {
+    const firstName = document.getElementById('regFirstName').value.trim();
+    const lastName = document.getElementById('regLastName').value.trim();
+    const nickname = document.getElementById('regNickname').value.trim();
+    
+    if (!firstName || !lastName) {
+        showToast('Пожалуйста, введите имя и фамилию');
+        return;
+    }
+    
+    registeredUser = {
+        firstName: firstName,
+        lastName: lastName,
+        nickname: nickname || '@user'
+    };
+    
+    // Переходим на экран выбора действия
+    document.getElementById('registerPage').classList.remove('active');
+    document.getElementById('actionPage').classList.add('active');
+    
+    // Обновляем отображение пользователя
+    document.getElementById('userDisplayName').textContent = firstName + ' ' + lastName;
+    document.getElementById('userDisplayNickname').textContent = nickname || '@user';
+    document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
 }
 
 // ==================== АУТЕНТИФИКАЦИЯ ====================
@@ -38,11 +91,27 @@ async function checkUser(tgId) {
             currentUser = result;
             currentLobbyId = result.lobbyId;
             isAdmin = result.role === 'admin' || result.role === 'super_admin';
-            showApp();
+            
+            // Если пользователь уже зарегистрирован, показываем экран выбора
+            document.getElementById('registerPage').classList.remove('active');
+            document.getElementById('actionPage').classList.add('active');
+            
+            document.getElementById('userDisplayName').textContent = result.fullName;
+            document.getElementById('userDisplayNickname').textContent = result.nickname || result.tgUsername || '@user';
+            document.getElementById('userAvatar').textContent = result.fullName.charAt(0).toUpperCase();
         }
     } catch(error) {
         console.error('Check user error:', error);
     }
+}
+
+// ==================== СОЗДАНИЕ / ПРИСОЕДИНЕНИЕ ====================
+function showCreateGroup() {
+    document.getElementById('createGroupModal').classList.add('active');
+}
+
+function showJoinGroup() {
+    document.getElementById('joinGroupModal').classList.add('active');
 }
 
 async function createGroup() {
@@ -66,11 +135,14 @@ async function createGroup() {
         
         if (result && result.lobbyId) {
             closeModal('createGroupModal');
-            showInviteCode(result.inviteCode);
+            
+            const fullName = registeredUser ? 
+                registeredUser.firstName + ' ' + registeredUser.lastName : 
+                tg.initDataUnsafe?.user?.first_name || 'Пользователь';
             
             const joinResult = await callApi('joinLobby', {
                 tgId: String(tgId),
-                fullName: tg.initDataUnsafe?.user?.first_name || 'Пользователь',
+                fullName: fullName,
                 inviteCode: result.inviteCode
             });
             
@@ -79,8 +151,11 @@ async function createGroup() {
                 currentUser = {
                     userId: joinResult.userId,
                     lobbyId: result.lobbyId,
-                    role: 'super_admin'
+                    role: 'super_admin',
+                    fullName: fullName
                 };
+                isAdmin = true;
+                showInviteCode(result.inviteCode);
                 showApp();
                 showToast('✅ Пространство создано!');
             }
@@ -92,10 +167,9 @@ async function createGroup() {
 
 async function joinGroup() {
     const inviteCode = document.getElementById('inviteCode').value.trim();
-    const fullName = document.getElementById('userFullName').value.trim();
     
-    if (!inviteCode || !fullName) {
-        showToast('Заполните все поля');
+    if (!inviteCode) {
+        showToast('Введите код приглашения');
         return;
     }
     
@@ -106,6 +180,10 @@ async function joinGroup() {
     }
     
     try {
+        const fullName = registeredUser ? 
+            registeredUser.firstName + ' ' + registeredUser.lastName : 
+            tg.initDataUnsafe?.user?.first_name || 'Пользователь';
+        
         const result = await callApi('joinLobby', {
             tgId: String(tgId),
             fullName: fullName,
@@ -118,7 +196,8 @@ async function joinGroup() {
             currentUser = {
                 userId: result.userId,
                 lobbyId: result.lobbyId,
-                role: result.role
+                role: result.role,
+                fullName: fullName
             };
             isAdmin = result.role === 'admin' || result.role === 'super_admin';
             showApp();
@@ -129,14 +208,6 @@ async function joinGroup() {
     } catch(error) {
         showToast('❌ Ошибка: ' + error.message);
     }
-}
-
-function showCreateGroup() {
-    document.getElementById('createGroupModal').classList.add('active');
-}
-
-function showJoinGroup() {
-    document.getElementById('joinGroupModal').classList.add('active');
 }
 
 function showInviteCode(code) {
@@ -151,8 +222,9 @@ function copyInviteCode() {
     });
 }
 
+// ==================== ГЛАВНОЕ ПРИЛОЖЕНИЕ ====================
 function showApp() {
-    document.getElementById('authPage').classList.remove('active');
+    document.getElementById('actionPage').classList.remove('active');
     document.getElementById('appPage').classList.add('active');
     
     document.getElementById('groupNameDisplay').textContent = 'Workspaces';
@@ -161,8 +233,11 @@ function showApp() {
     
     if (isAdmin) {
         document.getElementById('adminTab').style.display = 'flex';
+        document.getElementById('userRoleBadge').textContent = 'Админ';
+        document.getElementById('userRoleBadge').classList.add('admin');
     }
     
+    updateDates();
     loadTodaySchedule();
     loadTomorrowSchedule();
     loadWeekSchedule();
@@ -508,7 +583,6 @@ async function addHomework() {
 
 async function deleteHomework(homeworkId) {
     if (!confirm('Удалить это ДЗ?')) return;
-    // TODO: Добавить API для удаления
     showToast('🗑️ ДЗ удалено');
     loadHomework();
 }
