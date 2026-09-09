@@ -1,7 +1,6 @@
 // ==================== ЧАТ ====================
 async function loadChatMessages() {
     const container = document.getElementById('chatMessages');
-    
     if (!container) return;
     
     try {
@@ -41,7 +40,6 @@ async function loadChatMessages() {
 async function sendMessage() {
     const input = document.getElementById('chatInput');
     const text = input?.value.trim();
-    
     if (!text) return;
     
     const message = {
@@ -54,12 +52,9 @@ async function sendMessage() {
     
     try {
         const result = await callApi('sendChatMessage', message);
-        
         if (result.success) {
             input.value = '';
-            // Добавляем сообщение локально
             const container = document.getElementById('chatMessages');
-            const isOwn = true;
             const html = `
                 <div class="chat-message own">
                     <div>${text}</div>
@@ -69,21 +64,18 @@ async function sendMessage() {
             container.innerHTML += html;
             container.scrollTop = container.scrollHeight;
         } else {
-            showToast('❌ Ошибка отправки: ' + (result.error || 'Неизвестная ошибка'));
+            showToast('❌ Ошибка отправки');
         }
     } catch(error) {
         showToast('❌ Ошибка: ' + error.message);
     }
 }
 
-// Обработчик Enter
 document.addEventListener('DOMContentLoaded', function() {
     const chatInput = document.getElementById('chatInput');
     if (chatInput) {
         chatInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            if (e.key === 'Enter') sendMessage();
         });
     }
 });
