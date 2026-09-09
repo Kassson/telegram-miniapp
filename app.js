@@ -63,12 +63,10 @@
         loadTheme();
         initTelegram();
         
-        // Проверяем пользователя
         if (AppState.tg) {
             checkUserFromTelegram();
         }
         
-        // Навешиваем обработчики событий
         setupEventListeners();
     }
     
@@ -88,7 +86,6 @@
                 }
             } else {
                 console.warn('⚠️ Telegram WebApp не доступен, эмуляция');
-                // Эмуляция для браузера
                 AppState.tg = {
                     expand: function() { console.log('Telegram WebApp expanded (emulated)'); },
                     initDataUnsafe: { 
@@ -113,10 +110,10 @@
     // ==================== ТЕМА ====================
     function toggleTheme() {
         console.log('🔄 Переключение темы');
-        const html = document.documentElement;
-        const currentTheme = html.getAttribute('data-theme');
+        const htmlElement = document.documentElement;
+        const currentTheme = htmlElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', newTheme);
+        htmlElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
         updateThemeButtons(newTheme);
     }
@@ -129,7 +126,7 @@
     
     function updateThemeButtons(theme) {
         const icon = theme === 'dark' ? '☀️' : '🌙';
-        document.querySelectorAll('.theme-toggle, .theme-toggle-small').forEach(el => {
+        document.querySelectorAll('.theme-toggle, .theme-toggle-small').forEach(function(el) {
             if (el) el.textContent = icon;
         });
     }
@@ -310,9 +307,9 @@
     
     function copyInviteCode() {
         const code = DOM.inviteCodeDisplay?.textContent || '';
-        navigator.clipboard.writeText(code).then(() => {
+        navigator.clipboard.writeText(code).then(function() {
             showToast('📋 Код скопирован!');
-        }).catch(() => {
+        }).catch(function() {
             showToast('📋 Код: ' + code);
         });
     }
@@ -349,9 +346,9 @@
     
     // ==================== API ВЫЗОВЫ (JSONP) ====================
     function callApiJsonp(action, params) {
-        return new Promise((resolve, reject) => {
-            const callbackName = 'jsonp_callback_' + Date.now();
-            const url = window.CONFIG.API_URL + 
+        return new Promise(function(resolve, reject) {
+            var callbackName = 'jsonp_callback_' + Date.now();
+            var url = window.CONFIG.API_URL + 
                 '?action=' + action + 
                 '&params=' + encodeURIComponent(JSON.stringify(params)) + 
                 '&callback=' + callbackName;
@@ -363,7 +360,7 @@
                 resolve(data);
             };
             
-            const script = document.createElement('script');
+            var script = document.createElement('script');
             script.src = url;
             script.onerror = function() {
                 delete window[callbackName];
@@ -372,8 +369,7 @@
             
             document.body.appendChild(script);
             
-            // Таймаут на случай, если скрипт не загрузился
-            setTimeout(() => {
+            setTimeout(function() {
                 if (window[callbackName]) {
                     delete window[callbackName];
                     reject(new Error('JSONP request timeout'));
@@ -383,7 +379,7 @@
     }
     
     async function callApi(action, params) {
-        const cacheKey = action + JSON.stringify(params);
+        var cacheKey = action + JSON.stringify(params);
         
         if (AppState.appCache[cacheKey]) {
             console.log('✅ Использую кэш для:', action);
@@ -392,11 +388,11 @@
         
         try {
             console.log('📡 Запрос к API через JSONP:', action);
-            const data = await callApiJsonp(action, params);
+            var data = await callApiJsonp(action, params);
             console.log('✅ Ответ от API:', data);
             
             AppState.appCache[cacheKey] = data;
-            setTimeout(() => { delete AppState.appCache[cacheKey]; }, 300000);
+            setTimeout(function() { delete AppState.appCache[cacheKey]; }, 300000);
             
             return data;
         } catch(error) {
@@ -409,13 +405,13 @@
     function switchTab(tab) {
         console.log('🔄 Переключение на вкладку:', tab);
         
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        const activeTab = document.querySelector(`.tab[data-tab="${tab}"]`);
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        var activeTab = document.querySelector('.tab[data-tab="' + tab + '"]');
         if (activeTab) activeTab.classList.add('active');
         
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        const panelId = 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1);
-        const panel = document.getElementById(panelId);
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        var panelId = 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1);
+        var panel = document.getElementById(panelId);
         if (panel) panel.classList.add('active');
         
         switch(tab) {
@@ -430,13 +426,13 @@
     
     // ==================== РАСПИСАНИЕ ====================
     function updateDates() {
-        const now = new Date();
-        const weekdays = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+        var now = new Date();
+        var weekdays = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
         
         if (DOM.todayDate) DOM.todayDate.textContent = now.toLocaleDateString('ru-RU');
         if (DOM.todayWeekday) DOM.todayWeekday.textContent = weekdays[now.getDay()];
         
-        const tomorrow = new Date(now);
+        var tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
         if (DOM.tomorrowDate) DOM.tomorrowDate.textContent = tomorrow.toLocaleDateString('ru-RU');
         if (DOM.tomorrowWeekday) DOM.tomorrowWeekday.textContent = weekdays[tomorrow.getDay()];
@@ -449,7 +445,7 @@
             return;
         }
         
-        const cacheKey = 'today_' + AppState.currentLobbyId;
+        var cacheKey = 'today_' + AppState.currentLobbyId;
         if (AppState.scheduleCache[cacheKey]) {
             DOM.todaySchedule.innerHTML = AppState.scheduleCache[cacheKey];
             return;
@@ -458,30 +454,30 @@
         DOM.todaySchedule.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
         
         try {
-            const result = await callApi('getSchedule', {
+            var result = await callApi('getSchedule', {
                 lobbyId: AppState.currentLobbyId,
                 dayOffset: 0
             });
             
             if (!result || !Array.isArray(result) || result.length === 0) {
-                const html = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
-                AppState.scheduleCache[cacheKey] = html;
-                DOM.todaySchedule.innerHTML = html;
+                var emptyHtml = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
+                AppState.scheduleCache[cacheKey] = emptyHtml;
+                DOM.todaySchedule.innerHTML = emptyHtml;
                 return;
             }
             
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
+            var now = new Date();
+            var currentTime = now.getHours() * 60 + now.getMinutes();
             
-            let html = '';
+            var htmlOutput = '';
             result.forEach(function(lesson) {
-                const parts = lesson.time.split(':').map(Number);
-                const lessonTime = parts[0] * 60 + parts[1];
-                const endTime = lessonTime + 45;
+                var parts = lesson.time.split(':').map(Number);
+                var lessonTime = parts[0] * 60 + parts[1];
+                var endTime = lessonTime + 45;
                 
-                let status = 'future';
-                let statusLabel = '🟢 Будущий';
-                let statusClass = 'future';
+                var status = 'future';
+                var statusLabel = '🟢 Будущий';
+                var statusClass = 'future';
                 
                 if (currentTime >= lessonTime && currentTime < endTime) {
                     status = 'current';
@@ -493,21 +489,21 @@
                     statusClass = 'past';
                 }
                 
-                html += '<div class="lesson-item ' + (status === 'current' ? 'current' : status === 'future' ? 'future' : '') + '">';
-                html += '<div class="lesson-time">' + lesson.time + '</div>';
-                html += '<div class="lesson-info">';
-                html += '<div class="lesson-subject">' + lesson.subject + '</div>';
-                html += '<div class="lesson-cabinet">Каб. ' + (lesson.cabinet || '-') + '</div>';
+                htmlOutput += '<div class="lesson-item ' + (status === 'current' ? 'current' : status === 'future' ? 'future' : '') + '">';
+                htmlOutput += '<div class="lesson-time">' + lesson.time + '</div>';
+                htmlOutput += '<div class="lesson-info">';
+                htmlOutput += '<div class="lesson-subject">' + lesson.subject + '</div>';
+                htmlOutput += '<div class="lesson-cabinet">Каб. ' + (lesson.cabinet || '-') + '</div>';
                 if (lesson.isReplaced) {
-                    html += '<div style="font-size:11px;color:var(--warning);">🔄 Замена</div>';
+                    htmlOutput += '<div style="font-size:11px;color:var(--warning);">🔄 Замена</div>';
                 }
-                html += '</div>';
-                html += '<span class="lesson-status ' + statusClass + '">' + statusLabel + '</span>';
-                html += '</div>';
+                htmlOutput += '</div>';
+                htmlOutput += '<span class="lesson-status ' + statusClass + '">' + statusLabel + '</span>';
+                htmlOutput += '</div>';
             });
             
-            AppState.scheduleCache[cacheKey] = html;
-            DOM.todaySchedule.innerHTML = html;
+            AppState.scheduleCache[cacheKey] = htmlOutput;
+            DOM.todaySchedule.innerHTML = htmlOutput;
             
         } catch(error) {
             console.error('Load today schedule error:', error);
@@ -522,7 +518,7 @@
             return;
         }
         
-        const cacheKey = 'tomorrow_' + AppState.currentLobbyId;
+        var cacheKey = 'tomorrow_' + AppState.currentLobbyId;
         if (AppState.scheduleCache[cacheKey]) {
             DOM.tomorrowSchedule.innerHTML = AppState.scheduleCache[cacheKey];
             return;
@@ -531,31 +527,31 @@
         DOM.tomorrowSchedule.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
         
         try {
-            const result = await callApi('getSchedule', {
+            var result = await callApi('getSchedule', {
                 lobbyId: AppState.currentLobbyId,
                 dayOffset: 1
             });
             
             if (!result || !Array.isArray(result) || result.length === 0) {
-                const html = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
-                AppState.scheduleCache[cacheKey] = html;
-                DOM.tomorrowSchedule.innerHTML = html;
+                var emptyHtml = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
+                AppState.scheduleCache[cacheKey] = emptyHtml;
+                DOM.tomorrowSchedule.innerHTML = emptyHtml;
                 return;
             }
             
-            let html = '';
+            var htmlOutput = '';
             result.forEach(function(lesson) {
-                html += '<div class="lesson-item">';
-                html += '<div class="lesson-time">' + lesson.time + '</div>';
-                html += '<div class="lesson-info">';
-                html += '<div class="lesson-subject">' + lesson.subject + '</div>';
-                html += '<div class="lesson-cabinet">Каб. ' + (lesson.cabinet || '-') + '</div>';
-                html += '</div>';
-                html += '</div>';
+                htmlOutput += '<div class="lesson-item">';
+                htmlOutput += '<div class="lesson-time">' + lesson.time + '</div>';
+                htmlOutput += '<div class="lesson-info">';
+                htmlOutput += '<div class="lesson-subject">' + lesson.subject + '</div>';
+                htmlOutput += '<div class="lesson-cabinet">Каб. ' + (lesson.cabinet || '-') + '</div>';
+                htmlOutput += '</div>';
+                htmlOutput += '</div>';
             });
             
-            AppState.scheduleCache[cacheKey] = html;
-            DOM.tomorrowSchedule.innerHTML = html;
+            AppState.scheduleCache[cacheKey] = htmlOutput;
+            DOM.tomorrowSchedule.innerHTML = htmlOutput;
             
         } catch(error) {
             console.error('Load tomorrow schedule error:', error);
@@ -581,7 +577,7 @@
             return;
         }
         
-        const cacheKey = 'week_' + AppState.currentLobbyId + '_' + AppState.currentWeekOffset;
+        var cacheKey = 'week_' + AppState.currentLobbyId + '_' + AppState.currentWeekOffset;
         if (AppState.scheduleCache[cacheKey]) {
             DOM.weekSchedule.innerHTML = AppState.scheduleCache[cacheKey];
             return;
@@ -590,50 +586,50 @@
         DOM.weekSchedule.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
         
         try {
-            const weekdaysFull = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-            const now = new Date();
-            const startOfWeek = new Date(now);
+            var weekdaysFull = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+            var now = new Date();
+            var startOfWeek = new Date(now);
             startOfWeek.setDate(now.getDate() - now.getDay() + 1 + AppState.currentWeekOffset * 7);
             
-            let html = '';
+            var htmlOutput = '';
             
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(startOfWeek);
+            for (var i = 0; i < 7; i++) {
+                var date = new Date(startOfWeek);
                 date.setDate(date.getDate() + i);
                 
-                const dayOffset = (i - (now.getDay() === 0 ? 7 : now.getDay()) + 1) + AppState.currentWeekOffset * 7;
-                const result = await callApi('getSchedule', {
+                var dayOffset = (i - (now.getDay() === 0 ? 7 : now.getDay()) + 1) + AppState.currentWeekOffset * 7;
+                var result = await callApi('getSchedule', {
                     lobbyId: AppState.currentLobbyId,
                     dayOffset: dayOffset
                 });
                 
-                const isWeekend = i >= 5;
+                var isWeekend = i >= 5;
                 
-                html += '<div class="day-card" style="' + (isWeekend ? 'opacity:0.6;' : '') + '">';
-                html += '<div class="day-card-header">';
-                html += '<span class="day-card-title">' + weekdaysFull[i] + '</span>';
-                html += '<span class="day-card-date">' + date.toLocaleDateString('ru-RU') + '</span>';
+                htmlOutput += '<div class="day-card" style="' + (isWeekend ? 'opacity:0.6;' : '') + '">';
+                htmlOutput += '<div class="day-card-header">';
+                htmlOutput += '<span class="day-card-title">' + weekdaysFull[i] + '</span>';
+                htmlOutput += '<span class="day-card-date">' + date.toLocaleDateString('ru-RU') + '</span>';
                 if (AppState.isAdmin) {
-                    html += '<button class="btn btn-sm btn-outline" onclick="window.showToast(\'✏️ Редактирование в разработке\')">✏️</button>';
+                    htmlOutput += '<button class="btn btn-sm btn-outline" onclick="window.showToast(\'✏️ Редактирование в разработке\')">✏️</button>';
                 }
-                html += '</div>';
+                htmlOutput += '</div>';
                 
                 if (result && result.length > 0) {
                     result.forEach(function(l) {
-                        html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid var(--border-color);">';
-                        html += '<span>' + l.time + ' - ' + l.subject + '</span>';
-                        html += '<span style="color:var(--text-secondary);">каб. ' + (l.cabinet || '-') + '</span>';
-                        html += '</div>';
+                        htmlOutput += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid var(--border-color);">';
+                        htmlOutput += '<span>' + l.time + ' - ' + l.subject + '</span>';
+                        htmlOutput += '<span style="color:var(--text-secondary);">каб. ' + (l.cabinet || '-') + '</span>';
+                        htmlOutput += '</div>';
                     });
                 } else {
-                    html += '<div style="color:var(--text-secondary);font-size:13px;padding:4px 0;">Нет уроков</div>';
+                    htmlOutput += '<div style="color:var(--text-secondary);font-size:13px;padding:4px 0;">Нет уроков</div>';
                 }
                 
-                html += '</div>';
+                htmlOutput += '</div>';
             }
             
-            AppState.scheduleCache[cacheKey] = html;
-            DOM.weekSchedule.innerHTML = html;
+            AppState.scheduleCache[cacheKey] = htmlOutput;
+            DOM.weekSchedule.innerHTML = htmlOutput;
             
         } catch(error) {
             console.error('Load week schedule error:', error);
@@ -649,7 +645,7 @@
             return;
         }
         
-        const cacheKey = 'homework_' + AppState.currentLobbyId;
+        var cacheKey = 'homework_' + AppState.currentLobbyId;
         if (AppState.homeworkCache[cacheKey]) {
             DOM.homeworkContent.innerHTML = AppState.homeworkCache[cacheKey];
             return;
@@ -658,61 +654,61 @@
         DOM.homeworkContent.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
         
         try {
-            const result = await callApi('getHomework', { lobbyId: AppState.currentLobbyId });
+            var result = await callApi('getHomework', { lobbyId: AppState.currentLobbyId });
             
             if (!result || !Array.isArray(result) || result.length === 0) {
-                var html = '<div class="empty-state">';
-                html += '<div class="icon">📝</div>';
-                html += '<h3>Нет домашнего задания</h3>';
+                var emptyHtml = '<div class="empty-state">';
+                emptyHtml += '<div class="icon">📝</div>';
+                emptyHtml += '<h3>Нет домашнего задания</h3>';
                 if (AppState.isAdmin) {
-                    html += '<button class="btn btn-primary" style="margin-top:12px;" onclick="window.showAddHomework()">➕ Добавить ДЗ</button>';
+                    emptyHtml += '<button class="btn btn-primary" style="margin-top:12px;" onclick="window.showAddHomework()">➕ Добавить ДЗ</button>';
                 }
-                html += '</div>';
-                AppState.homeworkCache[cacheKey] = html;
-                DOM.homeworkContent.innerHTML = html;
+                emptyHtml += '</div>';
+                AppState.homeworkCache[cacheKey] = emptyHtml;
+                DOM.homeworkContent.innerHTML = emptyHtml;
                 return;
             }
             
-            let html = '';
+            var htmlOutput = '';
             if (AppState.isAdmin) {
-                html += '<button class="btn btn-primary btn-full" style="margin-bottom:12px;" onclick="window.showAddHomework()">➕ Добавить ДЗ</button>';
+                htmlOutput += '<button class="btn btn-primary btn-full" style="margin-bottom:12px;" onclick="window.showAddHomework()">➕ Добавить ДЗ</button>';
             }
             
             result.forEach(function(hw) {
-                const done = hw.progress ? hw.progress.filter(function(p) { return p.isDone; }).length : 0;
-                const total = hw.progress ? hw.progress.length : 0;
-                const isDone = hw.progress ? hw.progress.some(function(p) { return p.userId === AppState.currentUser?.userId && p.isDone; }) : false;
+                var done = hw.progress ? hw.progress.filter(function(p) { return p.isDone; }).length : 0;
+                var total = hw.progress ? hw.progress.length : 0;
+                var isDone = hw.progress ? hw.progress.some(function(p) { return p.userId === AppState.currentUser?.userId && p.isDone; }) : false;
                 
-                html += '<div class="card">';
-                html += '<div class="homework-item">';
-                html += '<div class="homework-header">';
-                html += '<span class="homework-subject">' + hw.subject + '</span>';
-                html += '<span class="badge ' + (isDone ? 'badge-success' : 'badge-warning') + '">';
-                html += isDone ? '✅ Выполнено' : '⏳ Ожидает';
-                html += '</span>';
-                html += '</div>';
-                html += '<div class="homework-desc">' + hw.description + '</div>';
-                html += '<div class="homework-meta">';
-                html += '<span>📅 до ' + (hw.dueDate || 'Не указан') + '</span>';
-                html += '<span>👥 ' + done + '/' + total + ' отметок</span>';
-                html += '</div>';
-                html += '<div class="homework-actions">';
+                htmlOutput += '<div class="card">';
+                htmlOutput += '<div class="homework-item">';
+                htmlOutput += '<div class="homework-header">';
+                htmlOutput += '<span class="homework-subject">' + hw.subject + '</span>';
+                htmlOutput += '<span class="badge ' + (isDone ? 'badge-success' : 'badge-warning') + '">';
+                htmlOutput += isDone ? '✅ Выполнено' : '⏳ Ожидает';
+                htmlOutput += '</span>';
+                htmlOutput += '</div>';
+                htmlOutput += '<div class="homework-desc">' + hw.description + '</div>';
+                htmlOutput += '<div class="homework-meta">';
+                htmlOutput += '<span>📅 до ' + (hw.dueDate || 'Не указан') + '</span>';
+                htmlOutput += '<span>👥 ' + done + '/' + total + ' отметок</span>';
+                htmlOutput += '</div>';
+                htmlOutput += '<div class="homework-actions">';
                 if (!isDone) {
-                    html += '<button class="btn btn-success btn-sm" onclick="window.markHomeworkDone(\'' + hw.id + '\')">✅ Отметить</button>';
+                    htmlOutput += '<button class="btn btn-success btn-sm" onclick="window.markHomeworkDone(\'' + hw.id + '\')">✅ Отметить</button>';
                 } else {
-                    html += '<span style="color:var(--success);font-size:13px;">✅ Вы выполнили</span>';
+                    htmlOutput += '<span style="color:var(--success);font-size:13px;">✅ Вы выполнили</span>';
                 }
                 if (AppState.isAdmin) {
-                    html += '<button class="btn btn-warning btn-sm" onclick="window.showToast(\'✏️ Редактирование в разработке\')">✏️</button>';
-                    html += '<button class="btn btn-danger btn-sm" onclick="window.deleteHomework(\'' + hw.id + '\')">🗑️</button>';
+                    htmlOutput += '<button class="btn btn-warning btn-sm" onclick="window.showToast(\'✏️ Редактирование в разработке\')">✏️</button>';
+                    htmlOutput += '<button class="btn btn-danger btn-sm" onclick="window.deleteHomework(\'' + hw.id + '\')">🗑️</button>';
                 }
-                html += '</div>';
-                html += '</div>';
-                html += '</div>';
+                htmlOutput += '</div>';
+                htmlOutput += '</div>';
+                htmlOutput += '</div>';
             });
             
-            AppState.homeworkCache[cacheKey] = html;
-            DOM.homeworkContent.innerHTML = html;
+            AppState.homeworkCache[cacheKey] = htmlOutput;
+            DOM.homeworkContent.innerHTML = htmlOutput;
             
         } catch(error) {
             console.error('Load homework error:', error);
@@ -726,7 +722,7 @@
             return;
         }
         
-        const result = await callApi('markHomeworkDone', {
+        var result = await callApi('markHomeworkDone', {
             lobbyId: AppState.currentLobbyId,
             homeworkId: homeworkId,
             userId: AppState.currentUser.userId
@@ -764,9 +760,9 @@
     }
     
     async function addHomework() {
-        const subject = document.getElementById('hwSubject')?.value?.trim() || '';
-        const description = document.getElementById('hwDescription')?.value?.trim() || '';
-        const dueDate = document.getElementById('hwDueDate')?.value || '';
+        var subject = document.getElementById('hwSubject')?.value?.trim() || '';
+        var description = document.getElementById('hwDescription')?.value?.trim() || '';
+        var dueDate = document.getElementById('hwDueDate')?.value || '';
         
         if (!subject || !description) {
             showToast('Заполните все поля');
@@ -778,7 +774,7 @@
             return;
         }
         
-        const result = await callApi('addHomework', {
+        var result = await callApi('addHomework', {
             lobbyId: AppState.currentLobbyId,
             subject: subject,
             description: description,
@@ -821,10 +817,10 @@
     
     // ==================== ВСПОМОГАТЕЛЬНЫЕ ====================
     function showToast(message) {
-        const existing = document.querySelector('.notification-toast');
+        var existing = document.querySelector('.notification-toast');
         if (existing) existing.remove();
         
-        const toast = document.createElement('div');
+        var toast = document.createElement('div');
         toast.className = 'notification-toast';
         toast.textContent = message;
         document.body.appendChild(toast);
@@ -837,13 +833,12 @@
     }
     
     function closeModal(id) {
-        const modal = document.getElementById(id);
+        var modal = document.getElementById(id);
         if (modal) modal.classList.remove('active');
     }
     
     // ==================== ОБРАБОТЧИКИ СОБЫТИЙ ====================
     function setupEventListeners() {
-        // Чат - Enter для отправки
         if (DOM.chatInput) {
             DOM.chatInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
