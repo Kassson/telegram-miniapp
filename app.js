@@ -1,5 +1,5 @@
 // ============================================================
-// APP.JS — БЫСТРАЯ ЗАГРУЗКА + ПУСТЫЕ ПОЛЯ
+// APP.JS — ПОЛНАЯ ВЕРСИЯ С РЕДАКТОРОМ РАСПИСАНИЯ
 // ============================================================
 
 var AppTG = null;
@@ -21,7 +21,6 @@ var isLoading = false;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Приложение загружено!');
     
-    // Очищаем поля ввода (делаем пустыми)
     clearInputFields();
     
     try {
@@ -30,7 +29,6 @@ document.addEventListener('DOMContentLoaded', function() {
             AppTG.expand();
             var user = AppTG.initDataUnsafe?.user;
             if (user) {
-                // Заполняем поля только если они пустые
                 if (!document.getElementById('regFirstName').value) {
                     document.getElementById('regFirstName').value = user.first_name || '';
                 }
@@ -54,11 +52,11 @@ document.addEventListener('DOMContentLoaded', function() {
 // ОЧИСТКА ПОЛЕЙ ВВОДА
 // ============================================================
 function clearInputFields() {
-    document.getElementById('regFirstName').value = '';
-    document.getElementById('regLastName').value = '';
-    document.getElementById('regNickname').value = '';
-    document.getElementById('groupName').value = '';
-    document.getElementById('inviteCode').value = '';
+    var fields = ['regFirstName', 'regLastName', 'regNickname', 'groupName', 'inviteCode'];
+    for (var i = 0; i < fields.length; i++) {
+        var el = document.getElementById(fields[i]);
+        if (el) el.value = '';
+    }
 }
 
 // ============================================================
@@ -341,13 +339,11 @@ function showApp() {
     document.getElementById('actionPage').classList.remove('active');
     document.getElementById('appPage').classList.add('active');
     
-    // Название пространства
     var groupNameDisplay = document.getElementById('groupNameDisplay');
     if (groupNameDisplay) {
         groupNameDisplay.textContent = AppLobbyName || AppUser?.lobbyId || 'Workspaces';
     }
     
-    // Код приглашения в хедере
     var inviteHeader = document.getElementById('inviteCodeDisplayHeader');
     if (inviteHeader) {
         if (AppInviteCode) {
@@ -363,22 +359,21 @@ function showApp() {
         }
     }
     
-    // Имя пользователя
     var userNameDisplay = document.getElementById('userNameDisplay');
     if (userNameDisplay) {
         userNameDisplay.textContent = AppUser?.fullName || 'Пользователь';
     }
     
-    // Никнейм
     var userNicknameDisplay = document.getElementById('userNicknameDisplay');
     if (userNicknameDisplay) {
         userNicknameDisplay.textContent = AppUser?.nickname || '';
     }
     
-    // Админ-вкладка
     if (AppIsAdmin) {
         var adminTab = document.getElementById('adminTab');
         if (adminTab) adminTab.style.display = 'flex';
+        var scheduleEditorTab = document.getElementById('scheduleEditorTab');
+        if (scheduleEditorTab) scheduleEditorTab.style.display = 'flex';
         
         var badge = document.getElementById('userRoleBadge');
         if (badge) {
@@ -419,10 +414,8 @@ function loadMembersCount() {
 // ============================================================
 function callApi(action, params) {
     return new Promise(function(resolve, reject) {
-        // Создаём ключ кэша
         var cacheKey = action + '_' + JSON.stringify(params);
         
-        // Проверяем кэш (если есть и не старше 30 секунд)
         if (loadingCache[cacheKey]) {
             var cacheEntry = loadingCache[cacheKey];
             if (Date.now() - cacheEntry.timestamp < 30000) {
@@ -440,12 +433,10 @@ function callApi(action, params) {
         
         console.log('📡 Запрос:', url);
         
-        // Таймаут 5 секунд (вместо 15)
         var timeoutId = setTimeout(function() {
             if (window[callback]) {
                 console.error('❌ Таймаут для:', action);
                 delete window[callback];
-                // Показываем заглушку вместо ошибки
                 resolve({ success: false, error: 'timeout', _cached: true });
             }
         }, 5000);
@@ -455,7 +446,6 @@ function callApi(action, params) {
             console.log('📡 Ответ:', action, data);
             delete window[callback];
             
-            // Сохраняем в кэш
             loadingCache[cacheKey] = {
                 data: data,
                 timestamp: Date.now()
@@ -500,7 +490,6 @@ function loadTodaySchedule() {
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     callApi('getSchedule', { lobbyId: AppLobbyId, dayOffset: 0 }).then(function(result) {
-        // Проверяем, что ответ валидный
         if (!result || result._cached) {
             container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><h3>Загрузка...</h3><p>Попробуйте обновить страницу</p></div>';
             return;
@@ -725,7 +714,6 @@ function markHomeworkDone(homeworkId) {
     }).then(function(result) {
         if (result.success) {
             showToast('✅ ДЗ отмечено!');
-            // Очищаем кэш
             loadingCache = {};
             loadHomework();
         } else {
@@ -1197,6 +1185,160 @@ function kickUser(userId) {
 }
 
 // ============================================================
+// РЕДАКТОР РАСПИСАНИЯ (ТОЛЬКО ДЛЯ АДМИНОВ)
+// ============================================================
+
+function loadScheduleEditor() {
+    var container = document.getElementById('scheduleEditorContent');
+    if (!container) return;
+    
+    if (!AppLobbyId) {
+        container.innerHTML = '<div class="schedule-editor-empty"><div class="icon">📭</div><p>Нет данных</p></div>';
+        return;
+    }
+    
+    container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    var weekdays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+    var allLessons = [];
+    var loaded = 0;
+    
+    for (var i = 0; i < weekdays.length; i++) {
+        (function(index) {
+            var day = weekdays[index];
+            callApi('getScheduleByDay', { lobbyId: AppLobbyId, day: day }).then(function(result) {
+                if (result && Array.isArray(result)) {
+                    for (var j = 0; j < result.length; j++) {
+                        allLessons.push({
+                            day: day,
+                            time: result[j].time,
+                            subject: result[j].subject,
+                            cabinet: result[j].cabinet || '-'
+                        });
+                    }
+                }
+                loaded++;
+                if (loaded === weekdays.length) {
+                    renderScheduleEditor(allLessons);
+                }
+            });
+        })(i);
+    }
+}
+
+function renderScheduleEditor(lessons) {
+    var container = document.getElementById('scheduleEditorContent');
+    if (!container) return;
+    
+    if (lessons.length === 0) {
+        container.innerHTML = '<div class="schedule-editor-empty"><div class="icon">📋</div><p>Расписание пусто. Добавьте уроки!</p></div>';
+        return;
+    }
+    
+    var dayLabels = {
+        'ПН': 'ПН',
+        'ВТ': 'ВТ',
+        'СР': 'СР',
+        'ЧТ': 'ЧТ',
+        'ПТ': 'ПТ',
+        'СБ': 'СБ',
+        'ВС': 'ВС'
+    };
+    
+    var html = '';
+    for (var i = 0; i < lessons.length; i++) {
+        var lesson = lessons[i];
+        html += '<div class="schedule-editor-item">';
+        html += '<div class="lesson-info">';
+        html += '<span class="lesson-day">' + dayLabels[lesson.day] + '</span>';
+        html += '<span class="lesson-time">' + lesson.time + '</span>';
+        html += '<span class="lesson-subject">' + lesson.subject + '</span>';
+        html += '<span class="lesson-cabinet">каб. ' + lesson.cabinet + '</span>';
+        html += '</div>';
+        html += '<button class="delete-btn" onclick="deleteScheduleLesson(\'' + lesson.day + '\', \'' + lesson.time + '\')" title="Удалить урок">✕</button>';
+        html += '</div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function addScheduleLesson() {
+    var day = document.getElementById('editDay').value;
+    var time = document.getElementById('editTime').value;
+    var subject = document.getElementById('editSubject').value.trim();
+    var cabinet = document.getElementById('editCabinet').value.trim();
+    
+    if (!subject) {
+        showToast('Введите название предмета');
+        return;
+    }
+    
+    callApi('addScheduleLesson', {
+        lobbyId: AppLobbyId,
+        day: day,
+        time: time,
+        subject: subject,
+        cabinet: cabinet || '-',
+        adminId: AppUser.userId
+    }).then(function(result) {
+        if (result.success) {
+            showToast('✅ Урок добавлен!');
+            document.getElementById('editSubject').value = '';
+            document.getElementById('editCabinet').value = '';
+            loadingCache = {};
+            loadScheduleEditor();
+            loadTodaySchedule();
+            loadTomorrowSchedule();
+            loadWeekSchedule();
+        } else {
+            showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    });
+}
+
+function deleteScheduleLesson(day, time) {
+    if (!confirm('Удалить урок на ' + day + ' в ' + time + '?')) return;
+    
+    callApi('deleteScheduleLesson', {
+        lobbyId: AppLobbyId,
+        day: day,
+        time: time,
+        adminId: AppUser.userId
+    }).then(function(result) {
+        if (result.success) {
+            showToast('🗑️ Урок удалён');
+            loadingCache = {};
+            loadScheduleEditor();
+            loadTodaySchedule();
+            loadTomorrowSchedule();
+            loadWeekSchedule();
+        } else {
+            showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    });
+}
+
+function clearAllSchedule() {
+    if (!confirm('Вы уверены, что хотите очистить ВСЁ расписание?')) return;
+    
+    callApi('clearSchedule', {
+        lobbyId: AppLobbyId,
+        adminId: AppUser.userId
+    }).then(function(result) {
+        if (result.success) {
+            showToast('🗑️ Расписание очищено');
+            loadingCache = {};
+            loadScheduleEditor();
+            loadTodaySchedule();
+            loadTomorrowSchedule();
+            loadWeekSchedule();
+        } else {
+            showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    });
+}
+
+// ============================================================
 // ВСПОМОГАТЕЛЬНЫЕ
 // ============================================================
 function showToast(message) {
@@ -1241,5 +1383,6 @@ function switchTab(tab) {
     else if (tab === 'homework') loadHomework();
     else if (tab === 'members') loadMembers();
     else if (tab === 'chat') loadChatMessages();
+    else if (tab === 'scheduleEditor' && AppIsAdmin) loadScheduleEditor();
     else if (tab === 'admin' && AppIsAdmin) loadAdminPanel();
 }
