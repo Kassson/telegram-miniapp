@@ -321,6 +321,10 @@ body {
     padding: 4px 0 16px;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
 }
 
 .user-name {
@@ -689,7 +693,7 @@ body {
     box-shadow: 0 0 0 4px var(--accent-light);
 }
 
-/* ==================== АДМИН ПАНЕЛЬ ==================== */
+/* ==================== УЧАСТНИКИ И АДМИН ==================== */
 .admin-section {
     margin-bottom: 16px;
 }
