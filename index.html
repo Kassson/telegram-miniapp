@@ -163,6 +163,10 @@
                     <span class="tab-label">Чат</span>
                     <span class="tab-badge hidden" id="chatBadge">0</span>
                 </button>
+                <button class="tab admin-tab" data-tab="scheduleEditor" onclick="switchTab('scheduleEditor')" id="scheduleEditorTab" style="display:none">
+                    <span class="tab-icon">✏️</span>
+                    <span class="tab-label">Расписание</span>
+                </button>
                 <button class="tab admin-tab" data-tab="admin" onclick="switchTab('admin')" id="adminTab" style="display:none">
                     <span class="tab-icon">⚙️</span>
                     <span class="tab-label">Админ</span>
@@ -210,6 +214,55 @@
                             <input type="text" id="chatInput" placeholder="Сообщение..." class="chat-input-field">
                             <button class="btn btn-primary btn-sm" onclick="sendMessage()">➤</button>
                         </div>
+                    </div>
+                </div>
+
+                <div id="tabScheduleEditor" class="tab-panel">
+                    <div class="schedule-editor-container">
+                        <h3 class="section-title">✏️ Редактор расписания</h3>
+                        <div class="schedule-editor-controls">
+                            <div class="form-group">
+                                <label>День недели</label>
+                                <select id="editDay" class="form-input">
+                                    <option value="ПН">Понедельник</option>
+                                    <option value="ВТ">Вторник</option>
+                                    <option value="СР">Среда</option>
+                                    <option value="ЧТ">Четверг</option>
+                                    <option value="ПТ">Пятница</option>
+                                    <option value="СБ">Суббота</option>
+                                    <option value="ВС">Воскресенье</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Время</label>
+                                <select id="editTime" class="form-input">
+                                    <option value="09:00">09:00 - 09:45</option>
+                                    <option value="10:00">10:00 - 10:45</option>
+                                    <option value="11:00">11:00 - 11:45</option>
+                                    <option value="12:00">12:00 - 12:45</option>
+                                    <option value="13:05">13:05 - 13:50</option>
+                                    <option value="14:10">14:10 - 14:55</option>
+                                    <option value="15:05">15:05 - 15:50</option>
+                                    <option value="15:55">15:55 - 16:40</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Предмет</label>
+                                <input type="text" id="editSubject" class="form-input" placeholder="Математика">
+                            </div>
+                            <div class="form-group">
+                                <label>Кабинет</label>
+                                <input type="text" id="editCabinet" class="form-input" placeholder="301">
+                            </div>
+                            <button class="btn btn-primary btn-full" onclick="addScheduleLesson()">➕ Добавить урок</button>
+                        </div>
+                        
+                        <div class="schedule-editor-list">
+                            <h4>Текущее расписание</h4>
+                            <div id="scheduleEditorContent"></div>
+                        </div>
+                        
+                        <button class="btn btn-danger btn-full" style="margin-top:12px;" onclick="clearAllSchedule()">🗑️ Очистить всё расписание</button>
                     </div>
                 </div>
 
