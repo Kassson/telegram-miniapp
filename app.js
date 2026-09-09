@@ -5,33 +5,14 @@ let currentLobbyId = null;
 let currentWeekOffset = 0;
 let isAdmin = false;
 let registeredUser = null;
+let appCache = {}; // Кэш для данных
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 document.addEventListener('DOMContentLoaded', function() {
     tg.expand();
-    
     loadTheme();
     checkTelegramUser();
 });
-
-// ==================== ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ TELEGRAM ====================
-function checkTelegramUser() {
-    const tgUser = tg.initDataUnsafe?.user;
-    
-    if (tgUser) {
-        // Заполняем поля регистрации данными из Telegram
-        const firstName = tgUser.first_name || '';
-        const lastName = tgUser.last_name || '';
-        const username = tgUser.username ? '@' + tgUser.username : '';
-        
-        document.getElementById('regFirstName').value = firstName;
-        document.getElementById('regLastName').value = lastName;
-        document.getElementById('regNickname').value = username;
-        
-        // Проверяем, зарегистрирован ли пользователь
-        checkUser(tgUser.id);
-    }
-}
 
 // ==================== ТЕМА ====================
 function toggleTheme() {
@@ -67,17 +48,11 @@ function registerUser() {
         return;
     }
     
-    registeredUser = {
-        firstName: firstName,
-        lastName: lastName,
-        nickname: nickname || '@user'
-    };
+    registeredUser = { firstName, lastName, nickname: nickname || '@user' };
     
-    // Переходим на экран выбора действия
     document.getElementById('registerPage').classList.remove('active');
     document.getElementById('actionPage').classList.add('active');
     
-    // Обновляем отображение пользователя
     document.getElementById('userDisplayName').textContent = firstName + ' ' + lastName;
     document.getElementById('userDisplayNickname').textContent = nickname || '@user';
     document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
@@ -92,7 +67,6 @@ async function checkUser(tgId) {
             currentLobbyId = result.lobbyId;
             isAdmin = result.role === 'admin' || result.role === 'super_admin';
             
-            // Если пользователь уже зарегистрирован, показываем экран выбора
             document.getElementById('registerPage').classList.remove('active');
             document.getElementById('actionPage').classList.add('active');
             
@@ -102,6 +76,39 @@ async function checkUser(tgId) {
         }
     } catch(error) {
         console.error('Check user error:', error);
+    }
+}
+
+// ==================== API ВЫЗОВЫ С КЭШИРОВАНИЕМ ====================
+async function callApi(action, params) {
+    const cacheKey = action + JSON.stringify(params);
+    
+    // Проверяем кэш в памяти
+    if (appCache[cacheKey]) {
+        console.log('✅ Использую кэш для:', action);
+        return appCache[cacheKey];
+    }
+    
+    try {
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, params })
+        });
+        const data = await response.json();
+        
+        // Сохраняем в кэш
+        appCache[cacheKey] = data;
+        
+        // Очищаем кэш через 5 минут
+        setTimeout(() => {
+            delete appCache[cacheKey];
+        }, 300000);
+        
+        return data;
+    } catch(error) {
+        console.error('API Error:', error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -167,7 +174,6 @@ async function createGroup() {
 
 async function joinGroup() {
     const inviteCode = document.getElementById('inviteCode').value.trim();
-    
     if (!inviteCode) {
         showToast('Введите код приглашения');
         return;
@@ -248,23 +254,7 @@ function showApp() {
     }
 }
 
-// ==================== API ВЫЗОВЫ ====================
-async function callApi(action, params) {
-    try {
-        const response = await fetch(CONFIG.API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, params })
-        });
-        const data = await response.json();
-        return data;
-    } catch(error) {
-        console.error('API Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-// ==================== УПРАВЛЕНИЕ ТАБАМИ ====================
+// ==================== УПРАВЛЕНИЕ ТАБАМИ (ленивая загрузка) ====================
 function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('active');
@@ -273,6 +263,7 @@ function switchTab(tab) {
     const panelId = `tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`;
     document.getElementById(panelId)?.classList.add('active');
     
+    // Загружаем данные только при переключении на вкладку
     switch(tab) {
         case 'today': loadTodaySchedule(); break;
         case 'tomorrow': loadTomorrowSchedule(); break;
@@ -297,8 +288,18 @@ function updateDates() {
     document.getElementById('tomorrowWeekday').textContent = weekdays[tomorrow.getDay()];
 }
 
+let scheduleCache = {};
+
 async function loadTodaySchedule() {
     const container = document.getElementById('todaySchedule');
+    const cacheKey = 'today_' + currentLobbyId;
+    
+    // Показываем кэш, если есть
+    if (scheduleCache[cacheKey]) {
+        container.innerHTML = scheduleCache[cacheKey];
+        return;
+    }
+    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     try {
@@ -308,7 +309,9 @@ async function loadTodaySchedule() {
         });
         
         if (!result || !Array.isArray(result) || result.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
+            const html = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
+            scheduleCache[cacheKey] = html;
+            container.innerHTML = html;
             return;
         }
         
@@ -348,6 +351,7 @@ async function loadTodaySchedule() {
             `;
         });
         
+        scheduleCache[cacheKey] = html;
         container.innerHTML = html;
         
     } catch(error) {
@@ -357,6 +361,13 @@ async function loadTodaySchedule() {
 
 async function loadTomorrowSchedule() {
     const container = document.getElementById('tomorrowSchedule');
+    const cacheKey = 'tomorrow_' + currentLobbyId;
+    
+    if (scheduleCache[cacheKey]) {
+        container.innerHTML = scheduleCache[cacheKey];
+        return;
+    }
+    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     try {
@@ -366,7 +377,9 @@ async function loadTomorrowSchedule() {
         });
         
         if (!result || !Array.isArray(result) || result.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
+            const html = '<div class="empty-state"><div class="icon">📭</div><h3>Нет уроков</h3></div>';
+            scheduleCache[cacheKey] = html;
+            container.innerHTML = html;
             return;
         }
         
@@ -383,6 +396,7 @@ async function loadTomorrowSchedule() {
             `;
         });
         
+        scheduleCache[cacheKey] = html;
         container.innerHTML = html;
         
     } catch(error) {
@@ -401,6 +415,13 @@ function changeWeek(delta) {
 
 async function loadWeekSchedule() {
     const container = document.getElementById('weekSchedule');
+    const cacheKey = 'week_' + currentLobbyId + '_' + currentWeekOffset;
+    
+    if (scheduleCache[cacheKey]) {
+        container.innerHTML = scheduleCache[cacheKey];
+        return;
+    }
+    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     try {
@@ -443,6 +464,7 @@ async function loadWeekSchedule() {
             `;
         }
         
+        scheduleCache[cacheKey] = html;
         container.innerHTML = html;
         
     } catch(error) {
@@ -451,21 +473,32 @@ async function loadWeekSchedule() {
 }
 
 // ==================== ДОМАШНЕЕ ЗАДАНИЕ ====================
+let homeworkCache = {};
+
 async function loadHomework() {
     const container = document.getElementById('homeworkContent');
+    const cacheKey = 'homework_' + currentLobbyId;
+    
+    if (homeworkCache[cacheKey]) {
+        container.innerHTML = homeworkCache[cacheKey];
+        return;
+    }
+    
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
     
     try {
         const result = await callApi('getHomework', { lobbyId: currentLobbyId });
         
         if (!result || !Array.isArray(result) || result.length === 0) {
-            container.innerHTML = `
+            const html = `
                 <div class="empty-state">
                     <div class="icon">📝</div>
                     <h3>Нет домашнего задания</h3>
                     ${isAdmin ? `<button class="btn btn-primary" style="margin-top:12px;" onclick="showAddHomework()">➕ Добавить ДЗ</button>` : ''}
                 </div>
             `;
+            homeworkCache[cacheKey] = html;
+            container.innerHTML = html;
             return;
         }
         
@@ -508,6 +541,7 @@ async function loadHomework() {
             `;
         });
         
+        homeworkCache[cacheKey] = html;
         container.innerHTML = html;
         
     } catch(error) {
@@ -524,6 +558,8 @@ async function markHomeworkDone(homeworkId) {
     
     if (result.success) {
         showToast('✅ ДЗ отмечено как выполненное!');
+        // Очищаем кэш, чтобы обновить данные
+        homeworkCache = {};
         loadHomework();
     } else {
         showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
@@ -575,6 +611,7 @@ async function addHomework() {
     if (result.success) {
         showToast('✅ ДЗ добавлено!');
         closeModal('editModal');
+        homeworkCache = {};
         loadHomework();
     } else {
         showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
@@ -583,6 +620,7 @@ async function addHomework() {
 
 async function deleteHomework(homeworkId) {
     if (!confirm('Удалить это ДЗ?')) return;
+    homeworkCache = {};
     showToast('🗑️ ДЗ удалено');
     loadHomework();
 }
