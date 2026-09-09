@@ -1,10 +1,10 @@
 // ==================== АДМИН ПАНЕЛЬ ====================
 async function loadAdminPanel() {
     const container = document.getElementById('adminContent');
-    container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    if (!container) return;
     
     try {
-        // Загружаем участников
         const members = await callApi('getMembers', { lobbyId: currentLobbyId });
         
         if (!members || !Array.isArray(members)) {
@@ -24,14 +24,13 @@ async function loadAdminPanel() {
                 <div class="card">
                     <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
                         <button class="btn btn-sm btn-primary" onclick="showInviteCodeModal()">📋 Код приглашения</button>
-                        <button class="btn btn-sm btn-danger" onclick="clearAllData()">🗑️ Очистить всё</button>
                     </div>
         `;
         
         members.forEach(member => {
-            const isSelf = member.userId === currentUser.userId;
-            const canManage = currentUser.role === 'super_admin' || 
-                             (currentUser.role === 'admin' && member.role !== 'super_admin');
+            const isSelf = member.userId === currentUser?.userId;
+            const canManage = currentUser?.role === 'super_admin' || 
+                             (currentUser?.role === 'admin' && member.role !== 'super_admin');
             
             html += `
                 <div class="member-item ${member.isBlocked ? 'blocked' : ''}">
@@ -53,11 +52,7 @@ async function loadAdminPanel() {
                             <button class="btn btn-sm btn-warning" onclick="showNicknameModal('${member.userId}')">
                                 ✏️
                             </button>
-                            ${currentUser.role === 'super_admin' ? `
-                                <button class="btn btn-sm ${member.role === 'admin' ? 'btn-outline' : 'btn-primary'}" 
-                                        onclick="toggleAdmin('${member.userId}')">
-                                    ${member.role === 'admin' ? '⬇️' : '⬆️'}
-                                </button>
+                            ${currentUser?.role === 'super_admin' ? `
                                 <button class="btn btn-sm btn-danger" onclick="kickUser('${member.userId}')">
                                     🚫
                                 </button>
@@ -71,14 +66,6 @@ async function loadAdminPanel() {
         html += `
                 </div>
             </div>
-            <div class="admin-section">
-                <div class="admin-section-title">⚙️ Управление расписанием</div>
-                <div class="card">
-                    <button class="btn btn-primary btn-full" onclick="showAddReplace()">
-                        🔄 Добавить замену
-                    </button>
-                </div>
-            </div>
         `;
         
         container.innerHTML = html;
@@ -88,12 +75,11 @@ async function loadAdminPanel() {
     }
 }
 
-// ==================== УПРАВЛЕНИЕ УЧАСТНИКАМИ ====================
 async function toggleUserBlock(userId) {
     const result = await callApi('toggleBlock', {
         lobbyId: currentLobbyId,
         userId: userId,
-        adminId: currentUser.userId
+        adminId: currentUser?.userId
     });
     
     if (result.success) {
@@ -104,16 +90,9 @@ async function toggleUserBlock(userId) {
     }
 }
 
-async function toggleAdmin(userId) {
-    // TODO: Добавить API для назначения/снятия админа
-    showToast('⚙️ Функция в разработке');
-}
-
 async function kickUser(userId) {
     if (!confirm('Вы уверены, что хотите исключить пользователя?')) return;
-    // TODO: Добавить API для исключения
-    showToast('🚫 Пользователь исключён');
-    loadAdminPanel();
+    showToast('🚫 Функция в разработке');
 }
 
 function showNicknameModal(userId) {
@@ -144,15 +123,14 @@ async function setNickname(userId) {
         lobbyId: currentLobbyId,
         userId: userId,
         nickname: nickname,
-        adminId: currentUser.userId
+        adminId: currentUser?.userId
     });
     
     if (result.success) {
         showToast('✅ Никнейм назначен!');
         closeModal('editModal');
         loadAdminPanel();
-        // Обновляем отображение имени пользователя
-        if (userId === currentUser.userId) {
+        if (userId === currentUser?.userId) {
             currentUser.nickname = nickname;
             document.getElementById('userNicknameDisplay').textContent = nickname;
         }
@@ -169,91 +147,4 @@ function showInviteCodeModal() {
             document.getElementById('inviteCodeModal').classList.add('active');
         }
     });
-}
-
-// ==================== УПРАВЛЕНИЕ РАСПИСАНИЕМ ====================
-function showAddReplace() {
-    const modal = document.getElementById('editModal');
-    const content = document.getElementById('editModalContent');
-    
-    // Получаем текущее расписание для выбора
-    const weekdays = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
-    const weekdaysFull = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-    
-    let dayOptions = weekdays.map((d, i) => 
-        `<option value="${d}">${weekdaysFull[i]}</option>`
-    ).join('');
-    
-    content.innerHTML = `
-        <h3 class="modal-title">🔄 Добавить замену</h3>
-        <div class="form-group">
-            <label>День недели</label>
-            <select id="replaceDay" class="form-input">${dayOptions}</select>
-        </div>
-        <div class="form-group">
-            <label>Время урока</label>
-            <input type="time" id="replaceTime" class="form-input">
-        </div>
-        <div class="form-group">
-            <label>Новый предмет</label>
-            <input type="text" id="newSubject" class="form-input" placeholder="Новый предмет">
-        </div>
-        <div class="form-group">
-            <label>Новый кабинет</label>
-            <input type="text" id="newCabinet" class="form-input" placeholder="Кабинет">
-        </div>
-        <button class="btn btn-primary btn-full" onclick="addReplace()">🔄 Добавить замену</button>
-    `;
-    
-    modal.classList.add('active');
-}
-
-async function addReplace() {
-    const day = document.getElementById('replaceDay').value;
-    const time = document.getElementById('replaceTime').value;
-    const newSubject = document.getElementById('newSubject').value.trim();
-    const newCabinet = document.getElementById('newCabinet').value.trim();
-    
-    if (!time || !newSubject) {
-        showToast('Заполните все поля');
-        return;
-    }
-    
-    // Получаем текущее расписание для определения старого предмета
-    const schedule = await callApi('getSchedule', {
-        lobbyId: currentLobbyId,
-        dayOffset: 0
-    });
-    
-    // Находим урок по времени и дню (упрощённо)
-    const oldSubject = 'Старый предмет'; // TODO: Найти реальный предмет
-    
-    const result = await callApi('addReplace', {
-        lobbyId: currentLobbyId,
-        date: new Date().toISOString().split('T')[0],
-        day: day,
-        time: time,
-        oldSubject: oldSubject,
-        newSubject: newSubject,
-        newCabinet: newCabinet || '-',
-        adminId: currentUser.userId
-    });
-    
-    if (result.success) {
-        showToast('✅ Замена добавлена!');
-        closeModal('editModal');
-        loadWeekSchedule();
-    } else {
-        showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-    }
-}
-
-function showEditSchedule(day, date) {
-    showToast('✏️ Редактирование расписания в разработке');
-}
-
-function clearAllData() {
-    if (!confirm('Вы уверены, что хотите очистить все данные?')) return;
-    // TODO: Добавить API для очистки
-    showToast('🗑️ Данные очищены');
 }
