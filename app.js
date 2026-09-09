@@ -1,17 +1,23 @@
 // ============================================================
-// APP.JS — ПОЛНАЯ ВЕРСИЯ
+// APP.JS — ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
 // ============================================================
 
 var AppTG = null;
 var AppUser = null;
 var AppLobbyId = null;
+var AppLobbyName = null;
 var AppInviteCode = null;
 var AppIsAdmin = false;
 var AppRegistered = null;
 var WeekOffset = 0;
+var AppMembers = [];
 
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Приложение загружено!');
+    
     try {
         if (window.Telegram && window.Telegram.WebApp) {
             AppTG = window.Telegram.WebApp;
@@ -24,15 +30,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     } catch(e) { console.log('Telegram не доступен'); }
+    
     loadTheme();
     updateDates();
     loadSavedData();
+    checkExistingSession();
 });
 
+// ============================================================
+// ЗАГРУЗКА СОХРАНЁННЫХ ДАННЫХ
+// ============================================================
 function loadSavedData() {
     var savedName = localStorage.getItem('user_fullname');
     var savedNick = localStorage.getItem('user_nickname');
     var savedCode = localStorage.getItem('invite_code');
+    var savedLobbyId = localStorage.getItem('lobby_id');
+    var savedLobbyName = localStorage.getItem('lobby_name');
+    
     if (savedName) {
         var parts = savedName.split(' ');
         document.getElementById('regFirstName').value = parts[0] || '';
@@ -43,11 +57,36 @@ function loadSavedData() {
     }
     if (savedCode) {
         AppInviteCode = savedCode;
-        var display = document.getElementById('inviteCodeDisplay');
-        if (display) display.textContent = savedCode;
+    }
+    if (savedLobbyId) {
+        AppLobbyId = savedLobbyId;
+    }
+    if (savedLobbyName) {
+        AppLobbyName = savedLobbyName;
     }
 }
 
+function checkExistingSession() {
+    if (AppLobbyId && AppInviteCode) {
+        // Пытаемся восстановить сессию
+        var savedName = localStorage.getItem('user_fullname');
+        if (savedName) {
+            AppUser = {
+                fullName: savedName,
+                nickname: localStorage.getItem('user_nickname') || '',
+                lobbyId: AppLobbyId
+            };
+            document.getElementById('registerPage').classList.remove('active');
+            document.getElementById('actionPage').classList.remove('active');
+            document.getElementById('appPage').classList.add('active');
+            showApp();
+        }
+    }
+}
+
+// ============================================================
+// ТЕМА
+// ============================================================
 function loadTheme() {
     var theme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
@@ -101,6 +140,26 @@ function registerUser() {
 }
 
 // ============================================================
+// ВЫХОД ИЗ ПРОСТРАНСТВА
+// ============================================================
+function leaveSpace() {
+    if (!confirm('Вы уверены, что хотите покинуть пространство?')) return;
+    
+    localStorage.removeItem('lobby_id');
+    localStorage.removeItem('lobby_name');
+    localStorage.removeItem('invite_code');
+    AppLobbyId = null;
+    AppLobbyName = null;
+    AppInviteCode = null;
+    AppUser = null;
+    AppIsAdmin = false;
+    
+    document.getElementById('appPage').classList.remove('active');
+    document.getElementById('actionPage').classList.add('active');
+    showToast('👋 Вы покинули пространство');
+}
+
+// ============================================================
 // СОЗДАНИЕ / ПРИСОЕДИНЕНИЕ
 // ============================================================
 function showCreateGroup() {
@@ -129,7 +188,9 @@ function createGroup() {
         if (result && result.lobbyId) {
             closeModal('createGroupModal');
             AppInviteCode = result.inviteCode;
+            AppLobbyName = name;
             localStorage.setItem('invite_code', result.inviteCode);
+            localStorage.setItem('lobby_name', name);
             
             var fullName = AppRegistered ? 
                 AppRegistered.firstName + ' ' + AppRegistered.lastName : 
@@ -143,6 +204,8 @@ function createGroup() {
                 console.log('joinLobby ответ:', joinResult);
                 if (joinResult.success) {
                     AppLobbyId = result.lobbyId;
+                    localStorage.setItem('lobby_id', result.lobbyId);
+                    
                     AppUser = {
                         userId: joinResult.userId,
                         lobbyId: result.lobbyId,
@@ -192,7 +255,16 @@ function joinGroup() {
             closeModal('joinGroupModal');
             AppLobbyId = result.lobbyId;
             AppInviteCode = code;
+            localStorage.setItem('lobby_id', result.lobbyId);
             localStorage.setItem('invite_code', code);
+            
+            // Получаем название лобби
+            callApi('getLobbyName', { lobbyId: result.lobbyId }).then(function(nameResult) {
+                if (nameResult && nameResult.name) {
+                    AppLobbyName = nameResult.name;
+                    localStorage.setItem('lobby_name', nameResult.name);
+                }
+            });
             
             AppUser = {
                 userId: result.userId,
@@ -237,21 +309,13 @@ function showApp() {
     document.getElementById('actionPage').classList.remove('active');
     document.getElementById('appPage').classList.add('active');
     
+    // Название пространства
     var groupNameDisplay = document.getElementById('groupNameDisplay');
     if (groupNameDisplay) {
-        groupNameDisplay.textContent = AppUser?.lobbyId || 'Workspaces';
+        groupNameDisplay.textContent = AppLobbyName || AppUser?.lobbyId || 'Workspaces';
     }
     
-    var userNameDisplay = document.getElementById('userNameDisplay');
-    if (userNameDisplay) {
-        userNameDisplay.textContent = AppUser?.fullName || 'Пользователь';
-    }
-    
-    var userNicknameDisplay = document.getElementById('userNicknameDisplay');
-    if (userNicknameDisplay) {
-        userNicknameDisplay.textContent = AppUser?.nickname || '';
-    }
-    
+    // Код приглашения (рядом с названием)
     var inviteDisplay = document.getElementById('inviteCodeDisplay');
     if (inviteDisplay) {
         if (AppInviteCode) {
@@ -267,6 +331,19 @@ function showApp() {
         }
     }
     
+    // Имя пользователя
+    var userNameDisplay = document.getElementById('userNameDisplay');
+    if (userNameDisplay) {
+        userNameDisplay.textContent = AppUser?.fullName || 'Пользователь';
+    }
+    
+    // Никнейм
+    var userNicknameDisplay = document.getElementById('userNicknameDisplay');
+    if (userNicknameDisplay) {
+        userNicknameDisplay.textContent = AppUser?.nickname || '';
+    }
+    
+    // Админ-вкладка
     if (AppIsAdmin) {
         var adminTab = document.getElementById('adminTab');
         if (adminTab) adminTab.style.display = 'flex';
@@ -283,6 +360,26 @@ function showApp() {
     loadTomorrowSchedule();
     loadWeekSchedule();
     loadHomework();
+    loadMembersCount();
+}
+
+// ============================================================
+// ЗАГРУЗКА КОЛИЧЕСТВА УЧАСТНИКОВ
+// ============================================================
+function loadMembersCount() {
+    if (!AppLobbyId) return;
+    
+    callApi('getMembers', { lobbyId: AppLobbyId }).then(function(result) {
+        if (result && Array.isArray(result)) {
+            AppMembers = result;
+            var count = result.length;
+            var badge = document.querySelector('.tab[data-tab="members"] .tab-badge');
+            if (badge) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            }
+        }
+    });
 }
 
 // ============================================================
@@ -435,23 +532,30 @@ function loadWeekSchedule() {
         return;
     }
     container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
     var weekdays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
     var now = new Date();
     var start = new Date(now);
     start.setDate(now.getDate() - now.getDay() + 1 + WeekOffset * 7);
+    
     var html = '';
     var loaded = 0;
     var total = 7;
+    
+    // Правильный порядок дней недели
+    var dayNames = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+    
     for (var i = 0; i < 7; i++) {
         (function(index) {
             var date = new Date(start);
             date.setDate(date.getDate() + index);
             var offset = (index - (now.getDay() === 0 ? 7 : now.getDay()) + 1) + WeekOffset * 7;
+            
             callApi('getSchedule', { lobbyId: AppLobbyId, dayOffset: offset }).then(function(result) {
                 var isWeekend = index >= 5;
                 html += '<div class="day-card" style="' + (isWeekend ? 'opacity:0.6;' : '') + '">';
                 html += '<div class="day-card-header">';
-                html += '<span class="day-card-title">' + weekdays[index] + '</span>';
+                html += '<span class="day-card-title">' + dayNames[index] + '</span>';
                 html += '<span class="day-card-date">' + date.toLocaleDateString('ru-RU') + '</span>';
                 if (AppIsAdmin) {
                     html += '<button class="btn btn-sm btn-outline" onclick="showToast(\'✏️ Редактирование в разработке\')">✏️</button>';
@@ -608,6 +712,68 @@ function deleteHomework(homeworkId) {
 }
 
 // ============================================================
+// УЧАСТНИКИ
+// ============================================================
+function loadMembers() {
+    var container = document.getElementById('membersContent');
+    if (!container) return;
+    
+    if (!AppLobbyId) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">👥</div><h3>Нет данных</h3></div>';
+        return;
+    }
+    
+    container.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    
+    callApi('getMembers', { lobbyId: AppLobbyId }).then(function(result) {
+        if (!result || !Array.isArray(result)) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
+            return;
+        }
+        
+        var roleLabels = {
+            'super_admin': '👑 Главный админ',
+            'admin': '⚙️ Админ',
+            'user': '👤 Участник'
+        };
+        
+        var html = '<div class="card"><h3>👥 Участники (' + result.length + ')</h3>';
+        
+        for (var i = 0; i < result.length; i++) {
+            var member = result[i];
+            var isSelf = member.userId === AppUser?.userId;
+            
+            html += '<div class="member-item ' + (member.isBlocked ? 'blocked' : '') + '">';
+            html += '<div class="member-info">';
+            html += '<span class="member-name">' + member.fullName + '</span>';
+            if (member.nickname) {
+                html += '<span class="member-nickname">' + member.nickname + '</span>';
+            }
+            html += '<span class="member-role ' + (member.role === 'admin' || member.role === 'super_admin' ? member.role : '') + '">';
+            html += roleLabels[member.role] || member.role;
+            html += '</span>';
+            if (member.isBlocked) {
+                html += '<span class="badge badge-danger">🔒 Заблокирован</span>';
+            }
+            if (isSelf) {
+                html += '<span class="badge badge-info">Вы</span>';
+            }
+            html += '</div>';
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        
+        // Кнопка "Покинуть пространство"
+        html += '<button class="btn btn-danger btn-full" style="margin-top:12px;" onclick="leaveSpace()">🚪 Покинуть пространство</button>';
+        
+        container.innerHTML = html;
+    }).catch(function(err) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
+    });
+}
+
+// ============================================================
 // ЧАТ
 // ============================================================
 function loadChatMessages() {
@@ -743,6 +909,7 @@ function loadAdminPanel() {
         }
         
         html += '</div></div>';
+        html += '<button class="btn btn-danger btn-full" style="margin-top:12px;" onclick="leaveSpace()">🚪 Покинуть пространство</button>';
         container.innerHTML = html;
     }).catch(function(err) {
         container.innerHTML = '<div class="empty-state"><div class="icon">❌</div><h3>Ошибка загрузки</h3></div>';
@@ -758,6 +925,7 @@ function toggleUserBlock(userId) {
         if (result.success) {
             showToast(result.isBlocked ? '🔒 Пользователь заблокирован' : '🔓 Пользователь разблокирован');
             loadAdminPanel();
+            loadMembers();
         } else {
             showToast('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'));
         }
@@ -790,6 +958,7 @@ function setNickname(userId) {
             showToast('✅ Никнейм назначен!');
             closeModal('editModal');
             loadAdminPanel();
+            loadMembers();
             if (userId === AppUser?.userId) {
                 AppUser.nickname = nickname;
                 document.getElementById('userNicknameDisplay').textContent = nickname;
@@ -848,6 +1017,7 @@ function switchTab(tab) {
     else if (tab === 'tomorrow') loadTomorrowSchedule();
     else if (tab === 'week') loadWeekSchedule();
     else if (tab === 'homework') loadHomework();
+    else if (tab === 'members') loadMembers();
     else if (tab === 'chat') loadChatMessages();
     else if (tab === 'admin' && AppIsAdmin) loadAdminPanel();
 }
