@@ -1,5 +1,5 @@
 // ============================================================
-// APP.JS — С СОХРАНЕНИЕМ В TELEGRAM CLOUD STORAGE
+// APP.JS — ПОЛНАЯ ВЕРСИЯ С ИСПРАВЛЕНИЯМИ
 // ============================================================
 
 var AppTG = null;
@@ -13,81 +13,56 @@ var WeekOffset = 0;
 var AppMembers = [];
 var banTimers = {};
 var loadingCache = {};
-var storageReady = false;
 
 // ============================================================
-// УНИВЕРСАЛЬНОЕ ХРАНИЛИЩЕ (localStorage + CloudStorage)
+// УНИВЕРСАЛЬНОЕ ХРАНИЛИЩЕ
 // ============================================================
 var Storage = {
-    // Синхронный доступ через кэш в памяти
     cache: {},
     
-    // Инициализация — читаем всё из CloudStorage
     init: function(callback) {
         var self = this;
-        
-        // Сначала загружаем из localStorage (мгновенно)
         try {
             var keys = ['user_fullname', 'user_nickname', 'lobby_id', 'lobby_name', 'invite_code', 'user_role', 'tg_id', 'theme'];
             for (var i = 0; i < keys.length; i++) {
                 var val = localStorage.getItem(keys[i]);
                 if (val) self.cache[keys[i]] = val;
             }
-        } catch(e) { console.warn('localStorage error:', e); }
+        } catch(e) {}
         
-        // Потом синхронизируем с CloudStorage
         if (AppTG && AppTG.CloudStorage) {
             var cloudKeys = ['user_fullname', 'user_nickname', 'lobby_id', 'lobby_name', 'invite_code', 'user_role', 'tg_id'];
-            
             AppTG.CloudStorage.getItems(cloudKeys, function(err, values) {
                 if (!err && values) {
                     for (var key in values) {
                         if (values[key]) {
                             self.cache[key] = values[key];
-                            // Синхронизируем в localStorage тоже
                             try { localStorage.setItem(key, values[key]); } catch(e) {}
                         }
                     }
                 }
-                storageReady = true;
                 if (callback) callback();
             });
         } else {
-            storageReady = true;
             if (callback) callback();
         }
     },
     
-    // Получить значение
-    get: function(key) {
-        return this.cache[key] || null;
-    },
+    get: function(key) { return this.cache[key] || null; },
     
-    // Сохранить значение
     set: function(key, value) {
         this.cache[key] = value;
-        
-        // В localStorage
         try { localStorage.setItem(key, value); } catch(e) {}
-        
-        // В CloudStorage
         if (AppTG && AppTG.CloudStorage) {
-            try {
-                AppTG.CloudStorage.setItem(key, value, function(err) {
-                    if (err) console.warn('CloudStorage error:', err);
-                });
-            } catch(e) {}
+            try { AppTG.CloudStorage.setItem(key, value, function(err) {}); } catch(e) {}
         }
     },
     
-    // Удалить значение
     remove: function(key) {
         delete this.cache[key];
         try { localStorage.removeItem(key); } catch(e) {}
         if (AppTG && AppTG.CloudStorage) {
-            try {
-                AppTG.CloudStorage.removeItem(key, function(err) {});
-            } catch(e) {}
+            try { AppTG.CloudStorage.removeItem(key, function(err) {}); } catch(e) {}
         }
     }
 };
@@ -107,13 +82,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } catch(e) { console.log('Telegram не доступен'); }
     
-    // Загружаем тему
     loadTheme();
     updateDates();
     
-    // Инициализируем хранилище, затем проверяем сессию
     Storage.init(function() {
-        console.log('📦 Хранилище готово:', Storage.cache);
         checkExistingSession();
     });
 });
@@ -140,25 +112,16 @@ function checkExistingSession() {
     var savedRole = Storage.get('user_role');
     var savedNickname = Storage.get('user_nickname');
     
-    console.log('🔍 Проверка сессии:', {
-        name: savedName,
-        lobbyId: savedLobbyId,
-        inviteCode: savedInviteCode
-    });
-    
-    // Если есть имя и lobbyId — восстанавливаем сессию
     if (savedName && savedLobbyId && savedInviteCode) {
         AppLobbyId = savedLobbyId;
         AppLobbyName = savedLobbyName || 'Workspaces';
         AppInviteCode = savedInviteCode;
         
-        // Пробуем получить актуальные данные с сервера
         var tgId = AppTG?.initDataUnsafe?.user?.id || Storage.get('tg_id');
         
         if (tgId) {
             callApi('getUser', { tgId: String(tgId) }).then(function(user) {
                 if (user && user.userId) {
-                    // Обновляем данные из БД
                     AppUser = user;
                     AppLobbyId = user.lobbyId;
                     AppIsAdmin = user.role === 'admin' || user.role === 'super_admin';
@@ -171,18 +134,14 @@ function checkExistingSession() {
                     
                     showMainApp();
                 } else {
-                    // Пользователь удалён из БД — восстанавливаем локально
                     restoreLocalSession(savedName, savedNickname, savedRole);
                 }
             }).catch(function() {
                 restoreLocalSession(savedName, savedNickname, savedRole);
             });
         } else {
-            // Нет TG ID — восстанавливаем локально
             restoreLocalSession(savedName, savedNickname, savedRole);
         }
-    } else {
-        console.log('ℹ️ Нет сохранённой сессии — показываем регистрацию');
     }
 }
 
@@ -225,14 +184,20 @@ function toggleTheme() {
 
 function updateThemeIcons(theme) {
     var icon = theme === 'dark' ? '☀️' : '🌙';
+    // ВАЖНО: обновляем ТОЛЬКО .theme-toggle и .theme-toggle-small, НЕ трогаем .settings-btn
     var buttons = document.querySelectorAll('.theme-toggle, .theme-toggle-small');
     for (var i = 0; i < buttons.length; i++) {
+        // Пропускаем кнопку настроек
+        if (buttons[i].classList.contains('settings-btn')) continue;
         buttons[i].textContent = icon;
     }
+    // Убеждаемся, что кнопка настроек всегда показывает шестерёнку
+    var settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) settingsBtn.textContent = '⚙️';
 }
 
 // ============================================================
-// РЕГИСТРАЦИЯ
+// РЕГИСТРАЦИЯ С ПРОВЕРКОЙ NICKNAME
 // ============================================================
 function registerUser() {
     var firstName = document.getElementById('regFirstName').value.trim();
@@ -244,9 +209,20 @@ function registerUser() {
         return;
     }
     
+    // Проверка формата никнейма
+    if (nickname) {
+        // Убираем @ если есть
+        var cleanNick = nickname.replace('@', '');
+        if (cleanNick.length < 3) {
+            showToast('Никнейм должен быть минимум 3 символа');
+            return;
+        }
+        nickname = '@' + cleanNick;
+    }
+    
     var fullName = firstName + ' ' + lastName;
     
-    // Сохраняем через Storage (localStorage + CloudStorage)
+    // Сохраняем
     Storage.set('user_fullname', fullName);
     Storage.set('user_nickname', nickname || '@user');
     
@@ -264,12 +240,10 @@ function registerUser() {
     document.getElementById('userDisplayName').textContent = fullName;
     document.getElementById('userDisplayNickname').textContent = nickname || '@user';
     document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
-    
-    console.log('✅ Пользователь зарегистрирован:', fullName);
 }
 
 // ============================================================
-// НАСТРОЙКИ ПРОФИЛЯ
+// НАСТРОЙКИ ПРОФИЛЯ С ПРОВЕРКОЙ NICKNAME
 // ============================================================
 function showSettings() {
     var modal = document.getElementById('editModal');
@@ -285,7 +259,7 @@ function showSettings() {
         '<h3 class="modal-title">⚙️ Настройки профиля</h3>' +
         '<div class="form-group"><label>Имя</label><input type="text" id="settingsFirstName" class="form-input" value="' + firstName + '"></div>' +
         '<div class="form-group"><label>Фамилия</label><input type="text" id="settingsLastName" class="form-input" value="' + lastName + '"></div>' +
-        '<div class="form-group"><label>Telegram Nickname</label><input type="text" id="settingsNickname" class="form-input" value="' + nickname + '"></div>' +
+        '<div class="form-group"><label>Telegram Nickname</label><input type="text" id="settingsNickname" class="form-input" value="' + nickname + '" placeholder="@username"></div>' +
         '<button class="btn btn-primary btn-full" onclick="saveSettings()">💾 Сохранить</button>';
     
     modal.classList.add('active');
@@ -301,8 +275,39 @@ function saveSettings() {
         return;
     }
     
+    // Очищаем ник от @
+    if (nickname) {
+        var cleanNick = nickname.replace('@', '');
+        if (cleanNick.length < 3) {
+            showToast('Никнейм должен быть минимум 3 символа');
+            return;
+        }
+        nickname = '@' + cleanNick;
+    }
+    
     var fullName = firstName + ' ' + lastName;
     
+    // Проверка уникальности nickname (если он изменился)
+    var oldNickname = Storage.get('user_nickname');
+    
+    if (nickname && nickname !== oldNickname && AppLobbyId) {
+        callApi('checkNickname', {
+            lobbyId: AppLobbyId,
+            nickname: nickname,
+            userId: AppUser?.userId
+        }).then(function(checkResult) {
+            if (checkResult && checkResult.available === false) {
+                showToast('❌ Этот никнейм уже занят');
+                return;
+            }
+            applyProfileChanges(fullName, nickname);
+        });
+    } else {
+        applyProfileChanges(fullName, nickname);
+    }
+}
+
+function applyProfileChanges(fullName, nickname) {
     Storage.set('user_fullname', fullName);
     Storage.set('user_nickname', nickname || '@user');
     
@@ -385,50 +390,38 @@ function createGroup() {
     
     showToast('⏳ Создание...');
     
-    callApi('createLobby', {
+    // ВАЖНО: Создаём лобби и сразу присоединяемся — но сервер проверяет, что пользователь ещё не в лобби
+    callApi('createLobbyAndJoin', {
         creatorId: 'user_' + tgId,
-        lobbyName: name
+        lobbyName: name,
+        fullName: Storage.get('user_fullname') || 'Пользователь',
+        tgId: String(tgId)
     }).then(function(result) {
-        if (result && result.lobbyId) {
+        if (result && result.success && result.lobbyId) {
             closeModal('createGroupModal');
             
-            // СОХРАНЯЕМ СРАЗУ
-            AppInviteCode = result.inviteCode;
+            AppLobbyId = result.lobbyId;
             AppLobbyName = name;
+            AppInviteCode = result.inviteCode;
+            
             Storage.set('invite_code', result.inviteCode);
             Storage.set('lobby_name', name);
             Storage.set('lobby_id', result.lobbyId);
+            Storage.set('user_role', result.role);
             
-            var fullName = Storage.get('user_fullname') || 'Пользователь';
+            AppUser = {
+                userId: result.userId,
+                lobbyId: result.lobbyId,
+                role: result.role,
+                fullName: Storage.get('user_fullname') || 'Пользователь',
+                nickname: Storage.get('user_nickname') || ''
+            };
+            AppIsAdmin = result.role === 'super_admin';
             
-            callApi('joinLobby', {
-                tgId: String(tgId),
-                fullName: fullName,
-                inviteCode: result.inviteCode
-            }).then(function(joinResult) {
-                if (joinResult.success) {
-                    AppLobbyId = result.lobbyId;
-                    AppUser = {
-                        userId: joinResult.userId,
-                        lobbyId: result.lobbyId,
-                        role: 'super_admin',
-                        fullName: fullName,
-                        nickname: Storage.get('user_nickname') || ''
-                    };
-                    AppIsAdmin = true;
-                    
-                    // СОХРАНЯЕМ РОЛЬ
-                    Storage.set('user_role', 'super_admin');
-                    Storage.set('lobby_id', result.lobbyId);
-                    
-                    loadingCache = {};
-                    showApp();
-                    showToast('✅ Пространство создано!');
-                    showInviteCode(result.inviteCode);
-                } else {
-                    showToast('❌ ' + (joinResult.error || 'Ошибка присоединения'));
-                }
-            });
+            loadingCache = {};
+            showApp();
+            showToast('✅ Пространство создано!');
+            showInviteCode(result.inviteCode);
         } else {
             showToast('❌ ' + (result.error || 'Ошибка создания'));
         }
@@ -459,7 +452,6 @@ function joinGroup() {
         if (result.success) {
             closeModal('joinGroupModal');
             
-            // СОХРАНЯЕМ СРАЗУ
             AppLobbyId = result.lobbyId;
             AppInviteCode = code;
             Storage.set('lobby_id', result.lobbyId);
@@ -535,7 +527,6 @@ function showApp() {
         userNicknameDisplay.textContent = AppUser?.nickname || '';
     }
     
-    // Скрываем админ-вкладки, если не админ
     var adminTab = document.getElementById('adminTab');
     var scheduleEditorTab = document.getElementById('scheduleEditorTab');
     var badge = document.getElementById('userRoleBadge');
@@ -568,7 +559,6 @@ function showApp() {
     loadHomework();
     loadMembersCount();
     
-    // Повторная загрузка через 1.5 сек
     setTimeout(function() {
         loadingCache = {};
         loadTodaySchedule();
@@ -595,7 +585,7 @@ function loadMembersCount() {
 }
 
 // ============================================================
-// API ВЫЗОВЫ С КЭШИРОВАНИЕМ И ПОВТОРНЫМИ ПОПЫТКАМИ
+// API ВЫЗОВЫ
 // ============================================================
 function callApi(action, params) {
     return new Promise(function(resolve) {
@@ -1163,14 +1153,27 @@ function showNicknameModal(userId) {
 function setNickname(userId) {
     var nickname = document.getElementById('nicknameInput').value.trim();
     if (!nickname) { showToast('Введите никнейм'); return; }
-    callApi('setNickname', { lobbyId: AppLobbyId, userId: userId, nickname: nickname, adminId: AppUser.userId }).then(function(result) {
-        if (result.success) {
-            showToast('✅ Никнейм назначен!');
-            closeModal('editModal');
-            loadingCache = {};
-            loadAdminPanel();
-            loadMembers();
+    
+    // Проверка уникальности
+    callApi('checkNickname', {
+        lobbyId: AppLobbyId,
+        nickname: nickname,
+        userId: userId
+    }).then(function(checkResult) {
+        if (checkResult && checkResult.available === false) {
+            showToast('❌ Этот никнейм уже занят');
+            return;
         }
+        
+        callApi('setNickname', { lobbyId: AppLobbyId, userId: userId, nickname: nickname, adminId: AppUser.userId }).then(function(result) {
+            if (result.success) {
+                showToast('✅ Никнейм назначен!');
+                closeModal('editModal');
+                loadingCache = {};
+                loadAdminPanel();
+                loadMembers();
+            }
+        });
     });
 }
 
