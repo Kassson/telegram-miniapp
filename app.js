@@ -1,5 +1,5 @@
 // ============================================================
-// APP.JS — СТАБИЛЬНАЯ ВЕРСИЯ С ПУСТЫМИ ПОЛЯМИ
+// APP.JS — С СОХРАНЕНИЕМ В TELEGRAM CLOUD STORAGE
 // ============================================================
 
 var AppTG = null;
@@ -13,6 +13,84 @@ var WeekOffset = 0;
 var AppMembers = [];
 var banTimers = {};
 var loadingCache = {};
+var storageReady = false;
+
+// ============================================================
+// УНИВЕРСАЛЬНОЕ ХРАНИЛИЩЕ (localStorage + CloudStorage)
+// ============================================================
+var Storage = {
+    // Синхронный доступ через кэш в памяти
+    cache: {},
+    
+    // Инициализация — читаем всё из CloudStorage
+    init: function(callback) {
+        var self = this;
+        
+        // Сначала загружаем из localStorage (мгновенно)
+        try {
+            var keys = ['user_fullname', 'user_nickname', 'lobby_id', 'lobby_name', 'invite_code', 'user_role', 'tg_id', 'theme'];
+            for (var i = 0; i < keys.length; i++) {
+                var val = localStorage.getItem(keys[i]);
+                if (val) self.cache[keys[i]] = val;
+            }
+        } catch(e) { console.warn('localStorage error:', e); }
+        
+        // Потом синхронизируем с CloudStorage
+        if (AppTG && AppTG.CloudStorage) {
+            var cloudKeys = ['user_fullname', 'user_nickname', 'lobby_id', 'lobby_name', 'invite_code', 'user_role', 'tg_id'];
+            
+            AppTG.CloudStorage.getItems(cloudKeys, function(err, values) {
+                if (!err && values) {
+                    for (var key in values) {
+                        if (values[key]) {
+                            self.cache[key] = values[key];
+                            // Синхронизируем в localStorage тоже
+                            try { localStorage.setItem(key, values[key]); } catch(e) {}
+                        }
+                    }
+                }
+                storageReady = true;
+                if (callback) callback();
+            });
+        } else {
+            storageReady = true;
+            if (callback) callback();
+        }
+    },
+    
+    // Получить значение
+    get: function(key) {
+        return this.cache[key] || null;
+    },
+    
+    // Сохранить значение
+    set: function(key, value) {
+        this.cache[key] = value;
+        
+        // В localStorage
+        try { localStorage.setItem(key, value); } catch(e) {}
+        
+        // В CloudStorage
+        if (AppTG && AppTG.CloudStorage) {
+            try {
+                AppTG.CloudStorage.setItem(key, value, function(err) {
+                    if (err) console.warn('CloudStorage error:', err);
+                });
+            } catch(e) {}
+        }
+    },
+    
+    // Удалить значение
+    remove: function(key) {
+        delete this.cache[key];
+        try { localStorage.removeItem(key); } catch(e) {}
+        if (AppTG && AppTG.CloudStorage) {
+            try {
+                AppTG.CloudStorage.removeItem(key, function(err) {});
+            } catch(e) {}
+        }
+    }
+};
 
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ
@@ -20,7 +98,6 @@ var loadingCache = {};
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Приложение загружено!');
     
-    // ВСЕГДА очищаем поля ввода
     clearAllInputs();
     
     try {
@@ -30,14 +107,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     } catch(e) { console.log('Telegram не доступен'); }
     
+    // Загружаем тему
     loadTheme();
     updateDates();
     
-    // Только после этого восстанавливаем сохранённые данные (если есть)
-    setTimeout(function() {
-        loadSavedData();
+    // Инициализируем хранилище, затем проверяем сессию
+    Storage.init(function() {
+        console.log('📦 Хранилище готово:', Storage.cache);
         checkExistingSession();
-    }, 100);
+    });
 });
 
 // ============================================================
@@ -52,89 +130,86 @@ function clearAllInputs() {
 }
 
 // ============================================================
-// ЗАГРУЗКА СОХРАНЁННЫХ ДАННЫХ
-// ============================================================
-function loadSavedData() {
-    var savedName = localStorage.getItem('user_fullname');
-    var savedNick = localStorage.getItem('user_nickname');
-    var savedCode = localStorage.getItem('invite_code');
-    var savedLobbyId = localStorage.getItem('lobby_id');
-    var savedLobbyName = localStorage.getItem('lobby_name');
-    
-    // ВАЖНО: НЕ подставляем данные в поля регистрации автоматически!
-    // Они нужны только для сохранения в памяти
-    
-    if (savedName) AppRegistered = { fullName: savedName };
-    if (savedNick) AppRegistered = AppRegistered || {};
-    if (savedCode) AppInviteCode = savedCode;
-    if (savedLobbyId) AppLobbyId = savedLobbyId;
-    if (savedLobbyName) AppLobbyName = savedLobbyName;
-}
-
-// ============================================================
 // ПРОВЕРКА СУЩЕСТВУЮЩЕЙ СЕССИИ
 // ============================================================
 function checkExistingSession() {
-    var savedName = localStorage.getItem('user_fullname');
-    var savedLobbyId = localStorage.getItem('lobby_id');
-    var savedInviteCode = localStorage.getItem('invite_code');
+    var savedName = Storage.get('user_fullname');
+    var savedLobbyId = Storage.get('lobby_id');
+    var savedInviteCode = Storage.get('invite_code');
+    var savedLobbyName = Storage.get('lobby_name');
+    var savedRole = Storage.get('user_role');
+    var savedNickname = Storage.get('user_nickname');
     
-    if (!savedLobbyId || !savedInviteCode || !savedName) return;
-    
-    var tgId = AppTG?.initDataUnsafe?.user?.id || localStorage.getItem('tg_id');
-    
-    if (!tgId) {
-        // Нет TG ID — используем сохранённые данные локально
-        AppUser = {
-            fullName: savedName,
-            nickname: localStorage.getItem('user_nickname') || '',
-            lobbyId: savedLobbyId,
-            role: localStorage.getItem('user_role') || 'user'
-        };
-        AppLobbyId = savedLobbyId;
-        AppInviteCode = savedInviteCode;
-        AppIsAdmin = AppUser.role === 'admin' || AppUser.role === 'super_admin';
-        
-        document.getElementById('registerPage').classList.remove('active');
-        document.getElementById('actionPage').classList.remove('active');
-        document.getElementById('appPage').classList.add('active');
-        showApp();
-        return;
-    }
-    
-    // Загружаем с сервера актуальные данные
-    callApi('getUser', { tgId: String(tgId) }).then(function(user) {
-        if (user && user.userId) {
-            AppUser = user;
-            AppLobbyId = user.lobbyId;
-            AppIsAdmin = user.role === 'admin' || user.role === 'super_admin';
-            
-            localStorage.setItem('lobby_id', user.lobbyId);
-            localStorage.setItem('user_fullname', user.fullName);
-            localStorage.setItem('user_nickname', user.nickname || '');
-            localStorage.setItem('user_role', user.role);
-            
-            document.getElementById('registerPage').classList.remove('active');
-            document.getElementById('actionPage').classList.remove('active');
-            document.getElementById('appPage').classList.add('active');
-            showApp();
-        } else {
-            // Пользователь не найден — сбрасываем
-            localStorage.removeItem('lobby_id');
-            localStorage.removeItem('invite_code');
-            localStorage.removeItem('lobby_name');
-            AppLobbyId = null;
-            AppInviteCode = null;
-            AppLobbyName = null;
-        }
+    console.log('🔍 Проверка сессии:', {
+        name: savedName,
+        lobbyId: savedLobbyId,
+        inviteCode: savedInviteCode
     });
+    
+    // Если есть имя и lobbyId — восстанавливаем сессию
+    if (savedName && savedLobbyId && savedInviteCode) {
+        AppLobbyId = savedLobbyId;
+        AppLobbyName = savedLobbyName || 'Workspaces';
+        AppInviteCode = savedInviteCode;
+        
+        // Пробуем получить актуальные данные с сервера
+        var tgId = AppTG?.initDataUnsafe?.user?.id || Storage.get('tg_id');
+        
+        if (tgId) {
+            callApi('getUser', { tgId: String(tgId) }).then(function(user) {
+                if (user && user.userId) {
+                    // Обновляем данные из БД
+                    AppUser = user;
+                    AppLobbyId = user.lobbyId;
+                    AppIsAdmin = user.role === 'admin' || user.role === 'super_admin';
+                    
+                    Storage.set('lobby_id', user.lobbyId);
+                    Storage.set('user_fullname', user.fullName);
+                    Storage.set('user_nickname', user.nickname || '');
+                    Storage.set('user_role', user.role);
+                    Storage.set('tg_id', String(tgId));
+                    
+                    showMainApp();
+                } else {
+                    // Пользователь удалён из БД — восстанавливаем локально
+                    restoreLocalSession(savedName, savedNickname, savedRole);
+                }
+            }).catch(function() {
+                restoreLocalSession(savedName, savedNickname, savedRole);
+            });
+        } else {
+            // Нет TG ID — восстанавливаем локально
+            restoreLocalSession(savedName, savedNickname, savedRole);
+        }
+    } else {
+        console.log('ℹ️ Нет сохранённой сессии — показываем регистрацию');
+    }
+}
+
+function restoreLocalSession(fullName, nickname, role) {
+    AppUser = {
+        userId: 'user_local',
+        lobbyId: AppLobbyId,
+        fullName: fullName,
+        nickname: nickname || '',
+        role: role || 'user'
+    };
+    AppIsAdmin = role === 'admin' || role === 'super_admin';
+    showMainApp();
+}
+
+function showMainApp() {
+    document.getElementById('registerPage').classList.remove('active');
+    document.getElementById('actionPage').classList.remove('active');
+    document.getElementById('appPage').classList.add('active');
+    showApp();
 }
 
 // ============================================================
 // ТЕМА
 // ============================================================
 function loadTheme() {
-    var theme = localStorage.getItem('theme') || 'light';
+    var theme = Storage.get('theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
     updateThemeIcons(theme);
 }
@@ -144,7 +219,7 @@ function toggleTheme() {
     var current = html.getAttribute('data-theme');
     var next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
+    Storage.set('theme', next);
     updateThemeIcons(next);
 }
 
@@ -157,7 +232,7 @@ function updateThemeIcons(theme) {
 }
 
 // ============================================================
-// РЕГИСТРАЦИЯ (БЕЗ АВТОЗАПОЛНЕНИЯ)
+// РЕГИСТРАЦИЯ
 // ============================================================
 function registerUser() {
     var firstName = document.getElementById('regFirstName').value.trim();
@@ -171,23 +246,26 @@ function registerUser() {
     
     var fullName = firstName + ' ' + lastName;
     
+    // Сохраняем через Storage (localStorage + CloudStorage)
+    Storage.set('user_fullname', fullName);
+    Storage.set('user_nickname', nickname || '@user');
+    
+    var tgId = AppTG?.initDataUnsafe?.user?.id;
+    if (tgId) Storage.set('tg_id', String(tgId));
+    
     AppRegistered = {
         firstName: firstName,
         lastName: lastName,
         nickname: nickname || '@user'
     };
     
-    localStorage.setItem('user_fullname', fullName);
-    localStorage.setItem('user_nickname', nickname || '@user');
-    
-    var tgId = AppTG?.initDataUnsafe?.user?.id;
-    if (tgId) localStorage.setItem('tg_id', String(tgId));
-    
     document.getElementById('registerPage').classList.remove('active');
     document.getElementById('actionPage').classList.add('active');
     document.getElementById('userDisplayName').textContent = fullName;
     document.getElementById('userDisplayNickname').textContent = nickname || '@user';
     document.getElementById('userAvatar').textContent = firstName.charAt(0).toUpperCase();
+    
+    console.log('✅ Пользователь зарегистрирован:', fullName);
 }
 
 // ============================================================
@@ -197,11 +275,11 @@ function showSettings() {
     var modal = document.getElementById('editModal');
     var content = document.getElementById('editModalContent');
     
-    var currentName = localStorage.getItem('user_fullname') || '';
+    var currentName = Storage.get('user_fullname') || '';
     var parts = currentName.split(' ');
     var firstName = parts[0] || '';
     var lastName = parts.slice(1).join(' ') || '';
-    var nickname = localStorage.getItem('user_nickname') || '';
+    var nickname = Storage.get('user_nickname') || '';
     
     content.innerHTML = 
         '<h3 class="modal-title">⚙️ Настройки профиля</h3>' +
@@ -225,8 +303,8 @@ function saveSettings() {
     
     var fullName = firstName + ' ' + lastName;
     
-    localStorage.setItem('user_fullname', fullName);
-    localStorage.setItem('user_nickname', nickname || '@user');
+    Storage.set('user_fullname', fullName);
+    Storage.set('user_nickname', nickname || '@user');
     
     document.getElementById('userNameDisplay').textContent = fullName;
     document.getElementById('userNicknameDisplay').textContent = nickname || '';
@@ -236,7 +314,7 @@ function saveSettings() {
         AppUser.nickname = nickname;
     }
     
-    if (AppUser?.userId && AppLobbyId) {
+    if (AppUser?.userId && AppUser.userId !== 'user_local' && AppLobbyId) {
         callApi('updateUserProfile', {
             lobbyId: AppLobbyId,
             userId: AppUser.userId,
@@ -265,10 +343,10 @@ function saveSettings() {
 function leaveSpace() {
     if (!confirm('Вы уверены, что хотите покинуть пространство?')) return;
     
-    localStorage.removeItem('lobby_id');
-    localStorage.removeItem('lobby_name');
-    localStorage.removeItem('invite_code');
-    localStorage.removeItem('user_role');
+    Storage.remove('lobby_id');
+    Storage.remove('lobby_name');
+    Storage.remove('invite_code');
+    Storage.remove('user_role');
     
     AppLobbyId = null;
     AppLobbyName = null;
@@ -302,8 +380,8 @@ function createGroup() {
         return;
     }
     
-    var tgId = AppTG?.initDataUnsafe?.user?.id || localStorage.getItem('tg_id') || '123456789';
-    localStorage.setItem('tg_id', String(tgId));
+    var tgId = AppTG?.initDataUnsafe?.user?.id || Storage.get('tg_id') || '123456789';
+    Storage.set('tg_id', String(tgId));
     
     showToast('⏳ Создание...');
     
@@ -313,12 +391,15 @@ function createGroup() {
     }).then(function(result) {
         if (result && result.lobbyId) {
             closeModal('createGroupModal');
+            
+            // СОХРАНЯЕМ СРАЗУ
             AppInviteCode = result.inviteCode;
             AppLobbyName = name;
-            localStorage.setItem('invite_code', result.inviteCode);
-            localStorage.setItem('lobby_name', name);
+            Storage.set('invite_code', result.inviteCode);
+            Storage.set('lobby_name', name);
+            Storage.set('lobby_id', result.lobbyId);
             
-            var fullName = localStorage.getItem('user_fullname') || 'Пользователь';
+            var fullName = Storage.get('user_fullname') || 'Пользователь';
             
             callApi('joinLobby', {
                 tgId: String(tgId),
@@ -327,17 +408,19 @@ function createGroup() {
             }).then(function(joinResult) {
                 if (joinResult.success) {
                     AppLobbyId = result.lobbyId;
-                    localStorage.setItem('lobby_id', result.lobbyId);
-                    localStorage.setItem('user_role', 'super_admin');
-                    
                     AppUser = {
                         userId: joinResult.userId,
                         lobbyId: result.lobbyId,
                         role: 'super_admin',
                         fullName: fullName,
-                        nickname: localStorage.getItem('user_nickname') || ''
+                        nickname: Storage.get('user_nickname') || ''
                     };
                     AppIsAdmin = true;
+                    
+                    // СОХРАНЯЕМ РОЛЬ
+                    Storage.set('user_role', 'super_admin');
+                    Storage.set('lobby_id', result.lobbyId);
+                    
                     loadingCache = {};
                     showApp();
                     showToast('✅ Пространство создано!');
@@ -361,10 +444,10 @@ function joinGroup() {
         return;
     }
     
-    var tgId = AppTG?.initDataUnsafe?.user?.id || localStorage.getItem('tg_id') || '123456789';
-    localStorage.setItem('tg_id', String(tgId));
+    var tgId = AppTG?.initDataUnsafe?.user?.id || Storage.get('tg_id') || '123456789';
+    Storage.set('tg_id', String(tgId));
     
-    var fullName = localStorage.getItem('user_fullname') || 'Пользователь';
+    var fullName = Storage.get('user_fullname') || 'Пользователь';
     
     showToast('⏳ Присоединение...');
     
@@ -375,16 +458,18 @@ function joinGroup() {
     }).then(function(result) {
         if (result.success) {
             closeModal('joinGroupModal');
+            
+            // СОХРАНЯЕМ СРАЗУ
             AppLobbyId = result.lobbyId;
             AppInviteCode = code;
-            localStorage.setItem('lobby_id', result.lobbyId);
-            localStorage.setItem('invite_code', code);
-            localStorage.setItem('user_role', result.role);
+            Storage.set('lobby_id', result.lobbyId);
+            Storage.set('invite_code', code);
+            Storage.set('user_role', result.role);
             
             callApi('getLobbyName', { lobbyId: result.lobbyId }).then(function(nameResult) {
                 if (nameResult && nameResult.name) {
                     AppLobbyName = nameResult.name;
-                    localStorage.setItem('lobby_name', nameResult.name);
+                    Storage.set('lobby_name', nameResult.name);
                 }
             });
             
@@ -393,7 +478,7 @@ function joinGroup() {
                 lobbyId: result.lobbyId,
                 role: result.role,
                 fullName: fullName,
-                nickname: localStorage.getItem('user_nickname') || ''
+                nickname: Storage.get('user_nickname') || ''
             };
             AppIsAdmin = result.role === 'admin' || result.role === 'super_admin';
             loadingCache = {};
@@ -450,13 +535,14 @@ function showApp() {
         userNicknameDisplay.textContent = AppUser?.nickname || '';
     }
     
+    // Скрываем админ-вкладки, если не админ
+    var adminTab = document.getElementById('adminTab');
+    var scheduleEditorTab = document.getElementById('scheduleEditorTab');
+    var badge = document.getElementById('userRoleBadge');
+    
     if (AppIsAdmin) {
-        var adminTab = document.getElementById('adminTab');
         if (adminTab) adminTab.style.display = 'flex';
-        var scheduleEditorTab = document.getElementById('scheduleEditorTab');
         if (scheduleEditorTab) scheduleEditorTab.style.display = 'flex';
-        
-        var badge = document.getElementById('userRoleBadge');
         if (badge) {
             if (AppUser?.role === 'super_admin') {
                 badge.textContent = '👑 Главный админ';
@@ -466,19 +552,24 @@ function showApp() {
                 badge.classList.add('admin');
             }
         }
+    } else {
+        if (adminTab) adminTab.style.display = 'none';
+        if (scheduleEditorTab) scheduleEditorTab.style.display = 'none';
+        if (badge) {
+            badge.textContent = 'Участник';
+            badge.classList.remove('admin', 'super_admin');
+        }
     }
     
     updateDates();
-    
-    // === АВТОМАТИЧЕСКАЯ ПЕРЕЗАГРУЗКА ДАННЫХ ЧЕРЕЗ 1.5 СЕК ===
     loadTodaySchedule();
     loadTomorrowSchedule();
     loadWeekSchedule();
     loadHomework();
     loadMembersCount();
     
+    // Повторная загрузка через 1.5 сек
     setTimeout(function() {
-        console.log('🔄 Повторная загрузка через 1.5 сек...');
         loadingCache = {};
         loadTodaySchedule();
         loadTomorrowSchedule();
@@ -532,9 +623,7 @@ function executeRequest(action, params, attempt, resolve) {
     var timeoutId = setTimeout(function() {
         if (window[callback]) {
             delete window[callback];
-            // Повторная попытка (максимум 3)
             if (attempt < 3) {
-                console.log('🔄 Повторная попытка', attempt + 1, 'для', action);
                 executeRequest(action, params, attempt + 1, resolve);
             } else {
                 resolve({ success: false, error: 'timeout', _cached: true });
@@ -1046,8 +1135,6 @@ function makeAdmin(userId) {
             loadingCache = {};
             loadAdminPanel();
             loadMembers();
-        } else {
-            showToast('❌ ' + (result.error || 'Ошибка'));
         }
     });
 }
