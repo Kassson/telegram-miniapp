@@ -26,15 +26,15 @@
                 <div class="register-form">
                     <div class="form-group">
                         <label>Имя</label>
-                        <input type="text" id="regFirstName" class="form-input" placeholder="Иван">
+                        <input type="text" id="regFirstName" class="form-input" placeholder="Иван" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>Фамилия</label>
-                        <input type="text" id="regLastName" class="form-input" placeholder="Иванов">
+                        <input type="text" id="regLastName" class="form-input" placeholder="Иванов" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>Telegram Nickname</label>
-                        <input type="text" id="regNickname" class="form-input" placeholder="@username">
+                        <input type="text" id="regNickname" class="form-input" placeholder="@username" autocomplete="off">
                     </div>
                     <button class="btn btn-primary btn-large" onclick="registerUser()">
                         Продолжить →
@@ -53,8 +53,8 @@
             <div class="action-container">
                 <div class="action-header">
                     <div class="user-avatar" id="userAvatar">👤</div>
-                    <h2 id="userDisplayName">Иван Иванов</h2>
-                    <p class="user-tg" id="userDisplayNickname">@username</p>
+                    <h2 id="userDisplayName">Гость</h2>
+                    <p class="user-tg" id="userDisplayNickname"></p>
                 </div>
 
                 <div class="action-buttons">
@@ -82,7 +82,7 @@
                 <h3 class="modal-title">Создать пространство</h3>
                 <div class="form-group">
                     <label>Название</label>
-                    <input type="text" id="groupName" placeholder="Введите название" class="form-input">
+                    <input type="text" id="groupName" placeholder="Введите название" class="form-input" autocomplete="off">
                 </div>
                 <button class="btn btn-primary btn-full" onclick="createGroup()">Создать</button>
             </div>
@@ -94,7 +94,7 @@
                 <h3 class="modal-title">Присоединиться</h3>
                 <div class="form-group">
                     <label>Код приглашения</label>
-                    <input type="text" id="inviteCode" placeholder="Введите код" class="form-input">
+                    <input type="text" id="inviteCode" placeholder="Введите код" class="form-input" autocomplete="off">
                 </div>
                 <button class="btn btn-primary btn-full" onclick="joinGroup()">Присоединиться</button>
             </div>
@@ -125,6 +125,7 @@
                 </div>
                 <div class="header-right">
                     <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleApp">🌙</button>
+                    <button class="theme-toggle" onclick="showSettings()" id="settingsBtn">⚙️</button>
                 </div>
             </header>
 
@@ -273,14 +274,6 @@
         </div>
     </div>
 
-    <script>
-        window.Telegram = window.Telegram || {
-            WebApp: {
-                expand: function() { console.log('Telegram WebApp expanded (emulated)'); },
-                initDataUnsafe: { user: { id: 123456789, first_name: 'Тест', last_name: 'Пользователь', username: 'testuser' } }
-            }
-        };
-    </script>
     <script src="config.js"></script>
     <script src="app.js"></script>
     <script src="chat.js"></script>
